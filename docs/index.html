@@ -398,10 +398,10 @@ function drawLunker() {
 }
 
 function shareLine() {
-  const { L, r, scope, tier, d } = last;
+  const { L, r, scope, d } = last;
   const p = r.under ? '0.1% 미만' : pctText(r.pct) + '%';
   const when = d.annual ? `${scope} ` : `${month}월 ${scope === '전국' ? '' : scope + ' '}`;
-  return `내 ${when}배스 ${L.toFixed(1)}cm는 낚맛 기록(${yr(d.y)}) ${fmt(r.n)}마리 중 상위 ${p} (${fmt(r.rank)}등, ${tier})! 너 배스는 몇 등이야? ${SITE}`;
+  return `${when}배스 ${L.toFixed(1)}cm, 낚맛 기록 ${fmt(r.n)}마리 중 상위 ${p}. 이번 주말에 이거 넘으면 인정 → ${SITE}`;
 }
 function buildShare() { $('shareText').value = shareLine(); }
 
