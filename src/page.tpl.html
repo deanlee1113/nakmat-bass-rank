@@ -59,6 +59,7 @@ h1 .hl { color: var(--lime); }
 button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-within { outline: 3px solid var(--orange); outline-offset: 2px; }
 .lenrow { display: flex; gap: 10px; align-items: stretch; }
 .lenbox { flex: 1; min-width: 0; display: flex; align-items: center; background: var(--white); border: 3px solid var(--navy); }
+.lenbox input::placeholder { color: #A9B4C4; font-size: 34px; }
 .lenbox input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--navy); font-family: var(--f-num); font-weight: 900; font-size: 44px; line-height: 1; padding: 6px 10px; font-variant-numeric: tabular-nums; outline: none; }
 .lenbox span { font-family: var(--f-num); font-weight: 900; font-size: 26px; padding-right: 12px; color: var(--ink-soft); }
 .go { flex: 0 0 auto; border: 3px solid var(--navy); background: var(--mint); color: var(--navy); font-family: var(--f-display); font-size: 20px; padding: 0 16px; cursor: pointer; box-shadow: 4px 4px 0 var(--navy); }
@@ -157,12 +158,12 @@ button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-w
     <label class="label" for="len">몇 cm였어요?</label>
     <div class="lenrow">
       <div class="lenbox">
-        <input id="len" name="len" type="number" inputmode="decimal" step="0.1" min="10" max="70" value="40" aria-describedby="hint">
+        <input id="len" name="len" type="number" inputmode="decimal" step="0.01" min="10" max="70" placeholder="예: 38.25" aria-describedby="hint">
         <span>cm</span>
       </div>
       <button class="go" type="submit">순위 보기</button>
     </div>
-    <p class="hint" id="hint">10~70cm 사이로 넣어 주세요. 소수점도 돼요(예: 38.5).</p>
+    <p class="hint" id="hint">10~70cm, 소수점 둘째 자리까지 넣을 수 있어요(예: 38.25).</p>
   </form>
 
   <section class="board" aria-live="polite" id="board">
@@ -245,19 +246,16 @@ const LOGO = "__LOGO__";
 const STICKER = "__STICKER__";
 const SITE = "__SITE__";
 const API = "__API__";
-const NBIN = 601;
-
-/* ---------- data ---------- */
+const EXAMPLE = 40;
 function prep(d, annual) {
-  const cnt = new Array(NBIN).fill(0);
-  for (const [i, c] of d.h) cnt[i] = c;
-  const ge = new Array(NBIN + 1).fill(0);
-  for (let i = NBIN - 1; i >= 0; i--) ge[i] = ge[i + 1] + cnt[i];
+  const parts = d.v.split(','); const vals = new Int32Array(parts.length); let acc = 1000;
+  for (let i = 0; i < parts.length; i++) { acc += parseInt(parts[i], 36); vals[i] = acc; }
   const cm = new Array(60).fill(0);
-  cnt.forEach((c, i) => { cm[Math.min(59, Math.floor(i / 10))] += c; });
-  let mx = 0; for (let i = NBIN - 1; i >= 0; i--) if (cnt[i]) { mx = 10 + i / 10; break; }
-  return { n: d.n, med: d.med, y: d.y, ge, cm, mx, annual: !!annual };
+  for (const c of vals) cm[Math.max(0, Math.min(59, Math.floor(c / 100) - 10))]++;
+  return { n: d.n, med: d.med, y: d.y, vals, cm, mx: vals[vals.length - 1] / 100, annual: !!annual };
 }
+function lowerBound(a, x) { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < x) lo = m + 1; else hi = m; } return lo; }
+function upperBound(a, x) { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] <= x) lo = m + 1; else hi = m; } return lo; }
 const NAT = {}, REG = {};
 for (const [m, d] of Object.entries(DATA.nat)) NAT[m] = prep(d);
 for (const [r, cells] of Object.entries(DATA.reg)) { REG[r] = {}; for (const [k, d] of Object.entries(cells)) REG[r][k] = prep(d, k === 'all'); }
@@ -269,6 +267,7 @@ function scopeData(r, m) {
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => n.toLocaleString('ko-KR');
+const fmtL = (x) => String(Math.round(x * 100) / 100);
 const yr = (y) => (y[0] === y[1] ? `${y[0]}년` : `${y[0]}~${y[1]}년`);
 function josa(w, a, b) { const c = w.charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? a : b; }
 let month = new Date().getMonth() + 1;
@@ -288,10 +287,10 @@ function track(ev, extra) {
 }
 const sentRanks = new Set();
 function trackRank() {
-  if (!last || !edited) return;
-  const key = `${month}|${region}|${last.L.toFixed(1)}`;
+  if (!last || !edited || $('len').value.trim() === '') return;
+  const key = `${month}|${region}|${last.L.toFixed(2)}`;
   if (sentRanks.has(key)) return; sentRanks.add(key);
-  track('rank', { m: month, reg: region, len: +last.L.toFixed(1), pct: +last.r.pct.toFixed(2), tier: last.tier, annual: last.d.annual ? 1 : 0 });
+  track('rank', { m: month, reg: region, len: +last.L.toFixed(2), pct: +last.r.pct.toFixed(2), tier: last.tier, annual: last.d.annual ? 1 : 0 });
 }
 let rankTimer = null;
 
@@ -332,7 +331,7 @@ function bragOf(p, scope) {
   return `기록이 쌓일수록 순위는 올라가요. <em>다음 한 마리</em>를 노려 봐요.`;
 }
 function pctText(p) { if (p >= 99.95) return '100'; return p < 10 ? p.toFixed(1) : String(Math.round(p * 10) / 10); }
-function rankIn(d, L) { const i = Math.max(0, Math.min(NBIN - 1, Math.round((L - 10) * 10))); const pct = (d.ge[i] / d.n) * 100; return { pct, rank: d.ge[i + 1] + 1, under: pct < 0.1, n: d.n }; }
+function rankIn(d, L) { const c = Math.round(L * 100), atLeast = d.n - lowerBound(d.vals, c), greater = d.n - upperBound(d.vals, c), pct = (atLeast / d.n) * 100; return { pct, rank: greater + 1, under: pct < 0.1, n: d.n }; }
 function basisText(d) { return d.annual ? `${yr(d.y)} ${region} 연중 기록 기준 (이 달 기록이 적어 1년 치로 비교)` : `${yr(d.y)} ${month}월 기록 기준`; }
 
 function render(animate) {
@@ -346,14 +345,16 @@ function render(animate) {
   $('cTitle').textContent = (d.annual ? `${region} 연중` : `${month}월 ${region === '전국' ? '' : region + ' '}`.trim()) + ' 배스 길이 분포';
   $('cSub').textContent = `막대 하나가 1cm, 높이는 기록 수예요. ${basisText(d)}.`;
   $('medK').textContent = (region === '전국' ? '같은 달' : region) + ' 중앙값';
-  $('sMed').innerHTML = d.med.toFixed(1) + '<small>cm</small>';
-  $('exTag').hidden = edited;
+  $('sMed').innerHTML = fmtL(d.med) + '<small>cm</small>';
   $('basis').textContent = basisText(d);
 
-  const raw = $('len').value.trim(), L = parseFloat(raw), hint = $('hint');
-  if (raw === '' || isNaN(L) || L < 10 || L > 70) { hint.textContent = '10~70cm 사이 숫자로 넣어 주세요.'; hint.className = 'hint err'; return; }
+  const raw = $('len').value.trim(), hint = $('hint');
+  const useExample = raw === '' && !edited;
+  const L = useExample ? EXAMPLE : Math.round(parseFloat(raw) * 100) / 100;
+  $('exTag').hidden = !useExample;
+  if (!useExample && (raw === '' || isNaN(L) || L < 10 || L > 70)) { hint.textContent = '10~70cm 사이 숫자로 넣어 주세요.'; hint.className = 'hint err'; return; }
   hint.className = 'hint';
-  hint.textContent = L > d.mx ? `${scope} 기록 중 가장 큰 ${d.mx.toFixed(1)}cm보다 커요. 기록으로 남기면 1등이에요.` : '10~70cm 사이로 넣어 주세요. 소수점도 돼요(예: 38.5).';
+  hint.textContent = L > d.mx ? `${scope} 기록 중 가장 큰 ${fmtL(d.mx)}cm보다 커요. 기록으로 남기면 1등이에요.` : (useExample ? '예시로 40cm를 넣어 봤어요. 내 배스 길이를 넣어 보세요.' : '10~70cm, 소수점 둘째 자리까지 넣을 수 있어요(예: 38.25).');
 
   const r = rankIn(d, L);
   const rn = region === '전국' ? null : rankIn(NAT[month], L);
@@ -365,7 +366,7 @@ function render(animate) {
   const r2 = $('rank2');
   if (rn) { r2.hidden = false; r2.innerHTML = `전국 ${month}월로 보면 상위 <b>${rn.under ? '0.1% 미만' : pctText(rn.pct) + '%'}</b> · ${fmt(rn.n)}마리 중 ${fmt(rn.rank)}등`; } else r2.hidden = true;
   const diff = L - d.med, sd = $('sDiff');
-  sd.innerHTML = (diff >= 0 ? '+' : '−') + Math.abs(diff).toFixed(1) + '<small>cm</small>';
+  sd.innerHTML = (diff >= 0 ? '+' : '−') + fmtL(Math.abs(diff)) + '<small>cm</small>';
   sd.className = 'v ' + (diff >= 0 ? 'up' : 'down');
 
   last = { L, r, rn, d, scope, tier: tierOf(r.pct) };
@@ -385,9 +386,9 @@ function drawChart(d, L) {
   for (let cm = 20; cm <= 60; cm += 10) { const x = x0 + (cm - 10) * bw; s += `<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="#003366" stroke-opacity=".12"/><text x="${x}" y="${y1 + 18}" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="14" fill="#003366">${cm}cm</text>`; }
   d.cm.forEach((v, b) => { if (!v) return; const x = x0 + b * bw + 0.5, y = ys(v), me = b === mine; s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(bw - 1).toFixed(2)}" height="${(y1 - y).toFixed(2)}" fill="${me ? '#D4FF3A' : '#003366'}" stroke="${me ? '#003366' : 'none'}" stroke-width="${me ? 1.5 : 0}"><title>${b + 10}~${b + 11}cm: ${fmt(v)}마리</title></rect>`; });
   const mx = x0 + (d.med - 10) * bw;
-  s += `<line x1="${mx}" y1="${y0 - 6}" x2="${mx}" y2="${y1}" stroke="#003366" stroke-width="2" stroke-dasharray="4 3"/><text x="${mx + 4}" y="${y0 + 2}" font-family="IBM Plex Sans KR, sans-serif" font-weight="700" font-size="11" fill="#003366">중앙 ${d.med.toFixed(1)}</text>`;
+  s += `<line x1="${mx}" y1="${y0 - 6}" x2="${mx}" y2="${y1}" stroke="#003366" stroke-width="2" stroke-dasharray="4 3"/><text x="${mx + 4}" y="${y0 + 2}" font-family="IBM Plex Sans KR, sans-serif" font-weight="700" font-size="11" fill="#003366">중앙 ${fmtL(d.med)}</text>`;
   const px = x0 + (Math.min(Math.max(L, 10), 70) - 10) * bw, left = px > 230;
-  s += `<line x1="${px}" y1="${y0 + 14}" x2="${px}" y2="${y1}" stroke="#FF4B2B" stroke-width="2.5"/><g transform="translate(${left ? px - 92 : px + 4},${y0 + 16})"><rect width="88" height="22" fill="#FF4B2B" stroke="#003366" stroke-width="1.5"/><text x="44" y="16" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-weight="700" font-size="12" fill="#FFFFFF">내 배스 ${L.toFixed(1)}</text></g>`;
+  s += `<line x1="${px}" y1="${y0 + 14}" x2="${px}" y2="${y1}" stroke="#FF4B2B" stroke-width="2.5"/><g transform="translate(${left ? px - 92 : px + 4},${y0 + 16})"><rect width="88" height="22" fill="#FF4B2B" stroke="#003366" stroke-width="1.5"/><text x="44" y="16" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-weight="700" font-size="12" fill="#FFFFFF">내 배스 ${fmtL(L)}</text></g>`;
   s += `<line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="#003366" stroke-width="2"/>`;
   $('chart').innerHTML = s;
 }
@@ -407,7 +408,7 @@ function shareLine() {
   const { L, r, scope, d } = last;
   const p = r.under ? '0.1% 미만' : pctText(r.pct) + '%';
   const when = d.annual ? `${scope} ` : `${month}월 ${scope === '전국' ? '' : scope + ' '}`;
-  return `${when}배스 ${L.toFixed(1)}cm, 낚맛 기록 ${fmt(r.n)}마리 중 상위 ${p}. 이번 주말에 이거 넘으면 인정 → ${SITE}`;
+  return `${when}배스 ${fmtL(L)}cm, 낚맛 기록 ${fmt(r.n)}마리 중 상위 ${p}. 이번 주말에 이거 넘으면 인정 → ${SITE}`;
 }
 function buildShare() { $('shareText').value = shareLine(); }
 
@@ -467,21 +468,21 @@ async function drawCard() {
   ctx.fillStyle = '#003366'; skewText(ctx, num, nx + 12, ny + 12, 0.14); ctx.fillStyle = '#D4FF3A'; skewText(ctx, num, nx, ny, 0.14);
   const nw = ctx.measureText(num).width; ctx.font = '900 130px "Big Shoulders Display", "Arial Narrow", sans-serif'; const unit = r.under ? '%↓' : '%';
   ctx.fillStyle = '#003366'; skewText(ctx, unit, nx + nw + 18, ny + 10, 0.14); ctx.fillStyle = '#D4FF3A'; skewText(ctx, unit, nx + nw + 8, ny, 0.14);
-  const l1 = `${d.annual ? '' : month + '월 '}${scope === '전국' ? '' : scope + ' '}배스 ${L.toFixed(1)}cm`;
+  const l1 = `${d.annual ? '' : month + '월 '}${scope === '전국' ? '' : scope + ' '}배스 ${fmtL(L)}cm`;
   ctx.fillStyle = '#FFFFFF'; fitFont(ctx, l1, '$px "Black Han Sans", sans-serif', 68, W - 128); skewText(ctx, l1, 64, 1090, 0.1);
   const l2 = `${scope} ${fmt(r.n)}마리 중 ${fmt(r.rank)}등` + (rn ? ` · 전국 상위 ${rn.under ? '0.1% 미만' : pctText(rn.pct) + '%'}` : '');
   ctx.fillStyle = '#BFD3EE'; fitFont(ctx, l2, '700 $px "IBM Plex Sans KR", sans-serif', 38, W - 128); ctx.fillText(l2, 64, 1150);
   ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = '600 24px "IBM Plex Sans KR", sans-serif'; ctx.fillText(`낚맛 앱 배스 기록 ${yr(d.y)} ${d.annual ? '연중' : month + '월'} 기준`, 64, H - 122);
-  ctx.textAlign = 'right'; ctx.fillText(SITE.replace(/^https?:\/\//, '').replace(/\/$/, ''), W - 60, H - 122); ctx.textAlign = 'left';
+  ctx.textAlign = 'right'; ctx.fillText("스토어에서 '낚맛' 검색", W - 60, H - 122); ctx.textAlign = 'left';
   ctx.fillStyle = '#D4FF3A'; ctx.fillRect(0, H - 96, W, 96);
   ctx.fillStyle = '#003366'; ctx.font = '900 52px "Big Shoulders Display", "Arial Narrow", sans-serif'; skewText(ctx, 'FOCUS ON YOUR FISHING', 60, H - 30, 0.14);
   ctx.font = '36px "Black Han Sans", sans-serif'; ctx.textAlign = 'right'; ctx.fillText('낚시에만 집중하세요', W - 60, H - 34); ctx.textAlign = 'left';
-  c.toBlob((blob) => { if (!blob) return; if (cardUrl) URL.revokeObjectURL(cardUrl); cardBlob = blob; cardUrl = URL.createObjectURL(blob); $('cardImg').src = cardUrl; $('saveCard').href = cardUrl; $('saveCard').download = `nakmat-bass-${angler ? angler.replace(/[^\w가-힣-]/g, '') + '-' : ''}${L.toFixed(1)}cm.jpg`; }, 'image/jpeg', 0.92);
+  c.toBlob((blob) => { if (!blob) return; if (cardUrl) URL.revokeObjectURL(cardUrl); cardBlob = blob; cardUrl = URL.createObjectURL(blob); $('cardImg').src = cardUrl; $('saveCard').href = cardUrl; $('saveCard').download = `nakmat-bass-${angler ? angler.replace(/[^\w가-힣-]/g, '') + '-' : ''}${fmtL(L)}cm.jpg`; }, 'image/jpeg', 0.92);
 }
 
 $('angler').value = angler;
 let nameTimer = null;
-$('angler').addEventListener('input', (e) => { angler = e.target.value.trim().slice(0, 12); try { localStorage.setItem('nbr_name', angler); } catch (err) {} scheduleCard(); clearTimeout(nameTimer); if (angler) nameTimer = setTimeout(() => track('name', last ? { m: month, reg: region, len: +last.L.toFixed(1), tier: last.tier } : {}), 2500); });
+$('angler').addEventListener('input', (e) => { angler = e.target.value.trim().slice(0, 12); try { localStorage.setItem('nbr_name', angler); } catch (err) {} scheduleCard(); clearTimeout(nameTimer); if (angler) nameTimer = setTimeout(() => track('name', last ? { m: month, reg: region, len: +last.L.toFixed(2), tier: last.tier } : {}), 2500); });
 $('photo').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   try { photo = await loadImg(URL.createObjectURL(f)); $('clearPhoto').hidden = false; $('cardMsg').textContent = '사진을 넣었어요. 순위를 바꾸면 카드도 같이 바뀌어요.'; track('photo'); scheduleCard(); }
