@@ -60,6 +60,7 @@ td.n { text-align: right; }
       <div class="box"><h2>기록 적은 지역 클릭</h2><div class="tbl"><table id="empty"></table></div></div>
       <div class="box"><h2>들어온 경로</h2><div class="tbl"><table id="ref"></table></div><div class="tbl" style="margin-top:8px"><table id="src"></table></div></div>
     </div>
+    <div class="box" style="margin-top:12px"><h2>닉네임 넣은 참여자 (최근 50명)</h2><div class="tbl"><table id="names"></table></div></div>
     <div class="box" style="margin-top:12px"><h2>최근 기록 25건</h2><div class="tbl"><table id="recent"></table></div></div>
   </div>
 </div>
@@ -67,7 +68,8 @@ td.n { text-align: right; }
 const API = "https://nakmat-bass-rank.deanlee1113.workers.dev";
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (n || 0).toLocaleString('ko-KR');
-const EVK = { visit: '방문', rank: '순위 확인', region_empty: '기록 적은 지역 클릭', photo: '사진 넣기', card_save: '카드 저장', card_share: '카드 공유', copy: '결과 문구 복사', app_cta: '앱 받기 클릭', lunker_app: '런커 컬러 → 앱', region_app: '지역 → 앱 기록하기' };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const EVK = { visit: '방문', rank: '순위 확인', name: '닉네임 입력', region_empty: '기록 적은 지역 클릭', photo: '사진 넣기', card_save: '카드 저장', card_share: '카드 공유', copy: '결과 문구 복사', app_cta: '앱 받기 클릭', lunker_app: '런커 컬러 → 앱', region_app: '지역 → 앱 기록하기' };
 try { const k = sessionStorage.getItem('nbr_admin'); if (k) $('key').value = k; } catch (e) {}
 function table(el, head, rows, barCol) {
   const max = barCol != null ? Math.max(1, ...rows.map((r) => r[barCol] || 0)) : 0;
@@ -104,7 +106,8 @@ async function load() {
   table($('empty'), ['지역', '클릭'], j.emptyReg.map((r) => [r.reg, r.n]), 1);
   table($('ref'), ['들어온 곳', '사람'], j.byRef.map((r) => [r.ref, r.people]), 1);
   table($('src'), ['접속 주소', '사람'], j.bySrc.map((r) => [r.src, r.people]), 1);
-  table($('recent'), ['시각(KST)', '행동', '달', '지역', '길이', '등급', '국가'], j.recent.map((r) => [new Date(r.ts).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), EVK[r.ev] || r.ev, r.m ?? '', r.reg ?? '', r.len ?? '', r.tier ?? '', r.country ?? '']));
+  table($('recent'), ['시각(KST)', '행동', '닉네임', '달', '지역', '길이', '등급', '국가'], j.recent.map((r) => [new Date(r.ts).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), EVK[r.ev] || r.ev, esc(r.name), r.m ?? '', r.reg ?? '', r.len ?? '', r.tier ?? '', r.country ?? '']));
+  table($('names'), ['닉네임', '최대 입력 길이', '지역', '기록 수', '마지막(KST)'], (j.names || []).map((r) => [esc(r.name), r.best != null ? r.best + 'cm' : '', esc(r.reg), r.n, new Date(r.last).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })]));
   $('out').hidden = false;
 }
 $('load').addEventListener('click', load);

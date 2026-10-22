@@ -115,6 +115,10 @@ button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-w
 .btn.lime { background: var(--lime); }
 .btn.block { flex: 0 0 auto; width: 100%; }
 .upl { position: relative; overflow: hidden; }
+.namebox { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.namebox label { font-weight: 700; font-size: 14px; flex: 0 0 auto; }
+.namebox input { flex: 1; min-width: 0; font-family: var(--f-display); font-size: 20px; padding: 8px 10px; border: 3px solid var(--navy); background: var(--white); color: var(--navy); outline: none; }
+.namebox input:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 .upl input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
 .note { margin: 10px 0 0; font-size: 12px; color: var(--ink-soft); }
 .msg { margin: 8px 0 0; font-size: 13px; font-weight: 700; min-height: 1.3em; }
@@ -192,7 +196,8 @@ button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-w
 
   <section class="card maker" id="maker">
     <h2>자랑 카드 만들기</h2>
-    <p class="sub">내 배스 사진을 넣으면 순위가 박힌 카드가 바로 만들어져요. 사진은 이 화면 안에서만 쓰고 어디에도 올라가지 않아요.</p>
+    <p class="sub">이름과 사진을 넣으면 순위가 박힌 카드가 바로 만들어져요.</p>
+    <div class="namebox"><label for="angler">이름·닉네임</label><input id="angler" type="text" maxlength="12" autocomplete="nickname" placeholder="예: 배스헌터"></div>
     <img class="preview" id="cardImg" alt="내 배스 순위 자랑 카드 미리보기">
     <div class="mbtns">
       <label class="btn lime upl" for="photo">사진 넣기<input id="photo" type="file" accept="image/*"></label>
@@ -229,7 +234,7 @@ button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-w
   <footer class="foot">
     <p class="loop">낚시인이 남긴 기록이, 다시 낚시인에게</p>
     <p>기준: 낚맛 앱 배스 승인 기록 중 10~70cm, 2021년 6월~2026년 10월 2일. 같은 달 기록을 연도 구분 없이 합쳐 비교하고, 화면에 실제 연도 범위를 함께 적어요. 지역은 기록이 100건·15명 이상이고 한 사람 기록이 절반을 넘지 않을 때만 순위를 내요. 그 달 기록이 부족하면 그 지역 1년 치 기록으로 비교해요. "상위 %"는 내 배스 이상 길이 기록의 비율이고, 낚맛에 기록된 배스 안에서의 순위예요.</p>
-    <p>사진은 이 화면 안에서만 쓰고 저장하지 않아요. 순위를 확인한 달·지역·길이와 버튼 사용은 이름이나 연락처 없이 통계로만 모아요.</p>
+    <p>사진은 카드를 만드는 데만 써요. 순위 기록과 닉네임은 통계로 모아요.</p>
   </footer>
 </div>
 
@@ -269,12 +274,13 @@ function josa(w, a, b) { const c = w.charCodeAt(w.length - 1); return c >= 0xAC0
 let month = new Date().getMonth() + 1;
 let region = '전국';
 let edited = false, photo = null, last = null;
+let angler = (() => { try { return localStorage.getItem('nbr_name') || ''; } catch (e) { return ''; } })();
 
 /* ---------- tracking (anonymous) ---------- */
 const SID = (() => { try { let s = localStorage.getItem('nbr_sid'); if (!s) { s = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('nbr_sid', s); } return s; } catch (e) { return 'anon-' + Math.random().toString(36).slice(2); } })();
 function track(ev, extra) {
   if (!API) return;
-  const body = JSON.stringify(Object.assign({ sid: SID, ev, src: location.hostname }, extra || {}));
+  const body = JSON.stringify(Object.assign({ sid: SID, ev, src: location.hostname, name: angler || undefined }, extra || {}));
   try {
     const blob = new Blob([body], { type: 'text/plain' });
     if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/api/track', blob))) fetch(API + '/api/track', { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
@@ -444,6 +450,16 @@ async function drawCard() {
   ctx.save(); ctx.translate(60, 70); ctx.rotate(-0.05); ctx.fillStyle = 'rgba(0,51,102,.55)'; ctx.fillRect(6, 6, 330, 62); ctx.fillStyle = '#F6F3EA'; ctx.fillRect(0, 0, 330, 62); ctx.fillStyle = '#003366'; ctx.font = '700 32px "IBM Plex Sans KR", sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('낚맛 데이터 리포트', 22, 33); ctx.restore();
   if (imgs.logo) { const lw = 250, lh = imgs.logo.height * (lw / imgs.logo.width); ctx.save(); ctx.shadowColor = '#003366'; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4; ctx.drawImage(imgs.logo, W - 60 - lw, 80, lw, lh); ctx.restore(); }
   ctx.textBaseline = 'alphabetic';
+  if (angler) {
+    ctx.font = '900 30px "Big Shoulders Display", "Arial Narrow", sans-serif'; const lab = 'ANGLER'; const lw2 = ctx.measureText(lab).width;
+    const nfs = fitFont(ctx, angler, '$px "Black Han Sans", sans-serif', 54, 560 - lw2);
+    const nwid = ctx.measureText(angler).width, px0 = 64, py0 = 640, ph = 78, pw = lw2 + nwid + 72;
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(px0 + 8, py0 + 8, pw, ph);
+    ctx.fillStyle = '#003366'; ctx.fillRect(px0, py0, pw, ph);
+    ctx.fillStyle = '#D4FF3A'; ctx.fillRect(px0, py0, 10, ph);
+    ctx.font = '900 30px "Big Shoulders Display", "Arial Narrow", sans-serif'; ctx.fillText(lab, px0 + 28, py0 + 50);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = nfs + 'px "Black Han Sans", sans-serif'; ctx.fillText(angler, px0 + 44 + lw2, py0 + 58);
+  }
   ctx.save(); ctx.translate(W - 330, 690); ctx.rotate(0.09); ctx.font = '64px "Black Han Sans", sans-serif'; const tw = ctx.measureText(tier).width + 56; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(8, 8, tw, 100); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-6, -6, tw + 12, 112); ctx.fillStyle = '#D4FF3A'; ctx.fillRect(0, 0, tw, 100); ctx.fillStyle = '#003366'; ctx.fillText(tier, 28, 74); ctx.restore();
   const num = r.under ? '0.1' : pctText(r.pct);
   ctx.fillStyle = '#FFFFFF'; ctx.font = '78px "Black Han Sans", sans-serif'; skewText(ctx, '상위', 64, 900, 0.14);
@@ -460,9 +476,12 @@ async function drawCard() {
   ctx.fillStyle = '#D4FF3A'; ctx.fillRect(0, H - 96, W, 96);
   ctx.fillStyle = '#003366'; ctx.font = '900 52px "Big Shoulders Display", "Arial Narrow", sans-serif'; skewText(ctx, 'FOCUS ON YOUR FISHING', 60, H - 30, 0.14);
   ctx.font = '36px "Black Han Sans", sans-serif'; ctx.textAlign = 'right'; ctx.fillText('낚시에만 집중하세요', W - 60, H - 34); ctx.textAlign = 'left';
-  c.toBlob((blob) => { if (!blob) return; if (cardUrl) URL.revokeObjectURL(cardUrl); cardBlob = blob; cardUrl = URL.createObjectURL(blob); $('cardImg').src = cardUrl; $('saveCard').href = cardUrl; $('saveCard').download = `nakmat-bass-${L.toFixed(1)}cm.jpg`; }, 'image/jpeg', 0.92);
+  c.toBlob((blob) => { if (!blob) return; if (cardUrl) URL.revokeObjectURL(cardUrl); cardBlob = blob; cardUrl = URL.createObjectURL(blob); $('cardImg').src = cardUrl; $('saveCard').href = cardUrl; $('saveCard').download = `nakmat-bass-${angler ? angler.replace(/[^\w가-힣-]/g, '') + '-' : ''}${L.toFixed(1)}cm.jpg`; }, 'image/jpeg', 0.92);
 }
 
+$('angler').value = angler;
+let nameTimer = null;
+$('angler').addEventListener('input', (e) => { angler = e.target.value.trim().slice(0, 12); try { localStorage.setItem('nbr_name', angler); } catch (err) {} scheduleCard(); clearTimeout(nameTimer); if (angler) nameTimer = setTimeout(() => track('name', last ? { m: month, reg: region, len: +last.L.toFixed(1), tier: last.tier } : {}), 2500); });
 $('photo').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   try { photo = await loadImg(URL.createObjectURL(f)); $('clearPhoto').hidden = false; $('cardMsg').textContent = '사진을 넣었어요. 순위를 바꾸면 카드도 같이 바뀌어요.'; track('photo'); scheduleCard(); }

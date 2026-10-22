@@ -2,7 +2,7 @@
 // 바인딩: env.DB (D1), env.ADMIN_KEY (secret), env.ASSETS (정적 파일 docs/)
 // 이름·연락처·사진은 받지 않는다. sid는 브라우저가 만든 무작위 값.
 
-const EVENTS = new Set(['visit', 'rank', 'region_empty', 'photo', 'card_save', 'card_share', 'copy', 'app_cta', 'lunker_app', 'region_app']);
+const EVENTS = new Set(['visit', 'rank', 'name', 'region_empty', 'photo', 'card_save', 'card_share', 'copy', 'app_cta', 'lunker_app', 'region_app']);
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -18,11 +18,12 @@ async function ensureSchema(db) {
       ts INTEGER NOT NULL,
       sid TEXT, ev TEXT NOT NULL,
       m INTEGER, reg TEXT, len REAL, pct REAL, tier TEXT, annual INTEGER, photo INTEGER,
-      src TEXT, ref TEXT, country TEXT
+      src TEXT, ref TEXT, country TEXT, name TEXT
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_ev_ts ON events(ev, ts)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_ev_sid ON events(ev, sid)`),
   ]);
+  try { await db.prepare(`ALTER TABLE events ADD COLUMN name TEXT`).run(); } catch (e) { /* 이미 있음 */ }
   schemaReady = true;
 }
 
@@ -39,13 +40,13 @@ async function track(request, env) {
   if (!b || !EVENTS.has(b.ev)) return json({ ok: false }, 400);
   await ensureSchema(env.DB);
   await env.DB.prepare(
-    `INSERT INTO events (ts, sid, ev, m, reg, len, pct, tier, annual, photo, src, ref, country)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`
+    `INSERT INTO events (ts, sid, ev, m, reg, len, pct, tier, annual, photo, src, ref, country, name)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
   ).bind(
     Date.now(), str(b.sid, 40), b.ev,
     num(b.m, 1, 12), str(b.reg, 8), num(b.len, 10, 70), num(b.pct, 0, 100), str(b.tier, 8),
     num(b.annual, 0, 1), num(b.photo, 0, 1), str(b.src, 60), str(b.ref, 80),
-    (request.cf && request.cf.country) || null
+    (request.cf && request.cf.country) || null, str(b.name, 20)
   ).run();
   return json({ ok: true });
 }
@@ -78,10 +79,11 @@ async function stats(request, env) {
     q(`SELECT COALESCE(reg,'?') AS reg, COUNT(*) AS n FROM events WHERE ev='region_empty' GROUP BY reg ORDER BY n DESC`),
     q(`SELECT COALESCE(src,'?') AS src, COUNT(DISTINCT sid) AS people FROM events WHERE ev='visit' GROUP BY src ORDER BY people DESC`),
     q(`SELECT COALESCE(NULLIF(ref,''),'(직접·앱 안)') AS ref, COUNT(DISTINCT sid) AS people FROM events WHERE ev='visit' GROUP BY ref ORDER BY people DESC LIMIT 12`),
-    q(`SELECT ts, ev, m, reg, len, tier, country FROM events ORDER BY ts DESC LIMIT 25`),
+    q(`SELECT ts, ev, m, reg, len, tier, country, name FROM events ORDER BY ts DESC LIMIT 25`),
+    q(`SELECT name, MAX(len) AS best, MAX(reg) AS reg, COUNT(*) AS n, MAX(ts) AS last FROM events WHERE name IS NOT NULL AND name <> '' GROUP BY sid, name ORDER BY last DESC LIMIT 50`),
   ]);
-  const [byEv, daily, byReg, byTier, byLen, emptyReg, bySrc, byRef, recent] = res.map((r) => r.results);
-  return json({ byEv, daily, byReg, byTier, byLen, emptyReg, bySrc, byRef, recent });
+  const [byEv, daily, byReg, byTier, byLen, emptyReg, bySrc, byRef, recent, names] = res.map((r) => r.results);
+  return json({ byEv, daily, byReg, byTier, byLen, emptyReg, bySrc, byRef, recent, names });
 }
 
 export default {
