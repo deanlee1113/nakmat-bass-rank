@@ -48,6 +48,28 @@ h1 .hl { color: var(--lime); }
 .card { background: var(--paper); border: 3px solid var(--navy); box-shadow: var(--shadow); padding: 18px 16px; position: relative; }
 .card.tilt { transform: rotate(-.6deg); }
 .card.tilt2 { transform: rotate(.5deg); }
+.ticker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center; background: var(--navy); color: var(--white); border-bottom: 3px solid var(--lime); height: 38px; overflow: hidden; }
+.tk-live { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 10px 0 max(12px, env(safe-area-inset-left, 0px)); background: var(--lime); color: var(--navy); font-family: var(--f-num); font-weight: 900; font-size: 16px; letter-spacing: .08em; }
+.tk-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.tk-view { flex: 1; min-width: 0; overflow: hidden; height: 100%; display: flex; align-items: center; }
+.tk-track { display: inline-flex; white-space: nowrap; gap: 28px; padding-left: 16px; will-change: transform; }
+.tk-track.run { animation: tk var(--tk-dur, 30s) linear infinite; }
+@keyframes tk { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.tk-item { font-size: 13px; font-weight: 600; }
+.tk-item b { color: var(--lime); font-weight: 700; }
+.tk-item em { font-style: normal; color: var(--mint); font-weight: 700; }
+.tk-item .up { color: var(--lime); }
+.tk-item .top1 { background: var(--orange); color: var(--white); padding: 0 5px; margin-right: 4px; font-weight: 700; }
+.tk-item small { color: var(--sky); margin-left: 4px; }
+@media (prefers-reduced-motion: reduce) { .tk-track.run { animation: none; } }
+.lb .pbtn { flex: 0 0 auto; font-family: var(--f-display); font-size: 14px; padding: 6px 9px; border: 2px solid var(--white); background: transparent; color: var(--white); cursor: pointer; }
+.lb .pbtn:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.pv { border: 3px solid var(--navy); padding: 0; max-width: min(92vw, 520px); width: 100%; background: var(--paper); box-shadow: 8px 8px 0 var(--navy); }
+.pv::backdrop { background: rgba(0,20,45,.7); }
+.pv-in { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.pv img { width: 100%; max-height: 70vh; object-fit: contain; background: var(--navy); }
+.pv-cap { margin: 0; font-family: var(--f-display); font-size: 20px; }
 .steps, .stack { display: flex; flex-direction: column; gap: 18px; }
 .step .no { position: absolute; top: -12px; left: 14px; background: var(--navy); color: var(--lime); font-family: var(--f-num); font-weight: 900; font-size: 14px; letter-spacing: .08em; padding: 2px 10px; }
 .label.q { font-family: var(--f-display); font-weight: 400; font-size: 22px; margin: 4px 0 12px; }
@@ -165,6 +187,7 @@ button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-w
 </style>
 </head>
 <body>
+<div class="ticker" id="ticker" aria-label="실시간 참여 소식"><span class="tk-live"><i></i>LIVE</span><div class="tk-view"><div class="tk-track" id="tkTrack"><span class="tk-item">실시간 랭킹 준비 중이에요</span></div></div></div>
 <div class="wrap">
   <div class="top">
     <span class="tape">낚맛 데이터 리포트</span>
@@ -289,6 +312,8 @@ button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-w
     <p>사진은 랭킹에 올릴 때만 저장돼요. 순위 기록과 닉네임은 통계로 모아요.</p>
   </footer>
 </div>
+
+<dialog class="pv" id="pv"><div class="pv-in"><img id="pvImg" alt="인증 사진"><p class="pv-cap" id="pvCap"></p><button type="button" class="btn primary" id="pvClose">닫기</button></div></dialog>
 
 <script>
 const DATA = __DATA__;
@@ -471,29 +496,68 @@ function buildShare() { $('shareText').value = shareLine(); }
 /* ---------- live ranking ---------- */
 const MY = (() => { try { return JSON.parse(localStorage.getItem('nbr_my') || '[]'); } catch (e) { return []; } })();
 let boardTimer = null, boardKey = '';
-function scheduleBoard() { const k = `${month}|${region}`; if (k === boardKey) return; clearTimeout(boardTimer); boardTimer = setTimeout(loadBoard, 300); }
+function scheduleBoard() { const k = `${month}`; if (k === boardKey) return; clearTimeout(boardTimer); boardTimer = setTimeout(loadBoard, 300); }
 function ago(ts) { const s = (Date.now() - ts) / 1000; if (s < 60) return '방금'; if (s < 3600) return Math.floor(s / 60) + '분 전'; if (s < 86400) return Math.floor(s / 3600) + '시간 전'; return Math.floor(s / 86400) + '일 전'; }
 async function loadBoard() {
-  if (!API || !month || !region || $('results').hidden) return;
-  boardKey = `${month}|${region}`;
-  try { const r = await fetch(`${API}/api/board?m=${month}&reg=${encodeURIComponent(region)}`); drawBoard(await r.json()); } catch (e) {}
+  if (!API || !month || $('results').hidden) return;
+  boardKey = `${month}`;
+  try { const r = await fetch(`${API}/api/board?m=${month}`); drawBoard(await r.json()); } catch (e) {}
 }
 function drawBoard(j) {
-  const scope = region === '전국' ? '' : region + ' ';
-  $('liveTitle').textContent = `${month}월 ${scope}실시간 랭킹`;
+  $('liveTitle').textContent = `${month}월 실시간 랭킹 · 전체 지역`;
   $('liveSub').textContent = `사진으로 인증한 기록만 올라와요 · 한 사람당 최고 기록 1개 · ${fmt(j.total || 0)}명 참여`;
   const ol = $('lb'); ol.innerHTML = '';
   const rows = j.rows || [];
   $('liveEmpty').hidden = rows.length > 0;
   rows.forEach((r, i) => {
     const li = document.createElement('li'); if (MY.includes(r.id)) li.className = 'me';
-    li.innerHTML = `<span class="rk">${i + 1}</span><img loading="lazy" alt="인증 사진" src="${API}/api/photo/${r.id}"><span class="who"><b></b><small></small></span><span class="ln">${fmtL(r.len)}<small>cm</small></span>`;
+    li.innerHTML = `<span class="rk">${i + 1}</span><span class="who"><b></b><small></small></span><span class="ln">${fmtL(r.len)}<small>cm</small></span><button type="button" class="pbtn">사진</button>`;
     li.querySelector('.who b').textContent = r.name;
     li.querySelector('.who small').textContent = `${r.reg} · ${ago(r.ts)}`;
+    li.querySelector('.pbtn').addEventListener('click', () => openPhoto(r, i + 1));
     ol.appendChild(li);
   });
 }
+function openPhoto(r, rank) {
+  $('pvImg').src = `${API}/api/photo/${r.id}`;
+  $('pvCap').textContent = `${rank}위 · ${r.name} · ${r.reg} ${fmtL(r.len)}cm`;
+  const d = $('pv'); if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  track('board_view');
+}
+$('pvClose').addEventListener('click', () => { const d = $('pv'); if (d.close) d.close(); else d.removeAttribute('open'); });
+$('pv').addEventListener('click', (e) => { if (e.target === $('pv')) $('pvClose').click(); });
 setInterval(() => { if (!document.hidden) loadBoard(); }, 30000);
+
+/* ---------- LIVE ticker ---------- */
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function feedItems(j) {
+  const items = [];
+  for (const e of (j.entries || [])) {
+    const nm = `<b>${esc(e.name)}</b>님`, where = `${e.m}월 ${esc(e.reg === '전국' ? '' : e.reg)} ${fmtL(e.len)}cm`.replace('  ', ' ');
+    let s;
+    if (e.rank_at === 1) s = `<span class="top1">새 1위</span>${nm} ${where}` + (e.beat ? ` · <em>${esc(e.beat)}</em>님을 제쳤어요` : '');
+    else if (e.prev_rank && e.rank_at < e.prev_rank) s = `${nm} ${e.prev_rank}위 → <em>${e.rank_at}위</em> <span class="up">▲${e.prev_rank - e.rank_at}</span> · ${where}`;
+    else s = `${nm} ${where} 등록` + (e.rank_at ? ` · <em>${e.m}월 ${e.rank_at}위</em>` : '');
+    items.push({ ts: e.ts, html: s });
+  }
+  for (const c of (j.checks || [])) {
+    const where = `${c.reg && c.reg !== '전국' ? esc(c.reg) + ' ' : ''}${fmtL(c.len)}cm`;
+    items.push({ ts: c.ts, html: `누군가 ${c.m}월 ${where} 순위 확인 · 상위 <em>${c.pct < 10 ? (+c.pct).toFixed(1) : Math.round(c.pct)}%</em>` });
+  }
+  return items.sort((a, b) => b.ts - a.ts).slice(0, 24);
+}
+let feedSig = '';
+async function loadFeed() {
+  if (!API) return;
+  let j; try { j = await (await fetch(API + '/api/feed')).json(); } catch (e) { return; }
+  const items = feedItems(j);
+  const html = (items.length ? items : [{ ts: 0, html: '아직 랭킹에 올라온 기록이 없어요 · <em>첫 1위의 주인공</em>이 되어 보세요' }])
+    .map((it) => `<span class="tk-item">${it.html}${it.ts ? `<small>${ago(it.ts)}</small>` : ''}</span>`).join('');
+  if (html === feedSig) return; feedSig = html;
+  const tr = $('tkTrack'); tr.classList.remove('run'); tr.innerHTML = html + html;
+  requestAnimationFrame(() => { const w = tr.scrollWidth / 2; tr.style.setProperty('--tk-dur', Math.max(18, w / 55) + 's'); tr.classList.add('run'); });
+}
+loadFeed(); setInterval(() => { if (!document.hidden) loadFeed(); }, 20000);
 $('enterBtn').addEventListener('click', async () => {
   const msg = $('enterMsg');
   if (!API) { msg.textContent = '지금은 랭킹에 올릴 수 없어요.'; return; }
@@ -511,8 +575,8 @@ $('enterBtn').addEventListener('click', async () => {
     const j = await r.json();
     if (j.ok) {
       MY.push(j.id); try { localStorage.setItem('nbr_my', JSON.stringify(MY.slice(-30))); } catch (e) {}
-      msg.textContent = `올렸어요! ${month}월 전체 랭킹 ${j.rank}위예요.`; track('entry');
-      boardKey = ''; await loadBoard(); $('live').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      msg.textContent = j.prevRank && j.rank < j.prevRank ? `올렸어요! ${j.prevRank}위 → ${j.rank}위로 올라갔어요.` : `올렸어요! ${month}월 전체 랭킹 ${j.rank}위예요.`; track('entry');
+      boardKey = ''; await loadBoard(); feedSig = ''; loadFeed(); $('live').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else msg.textContent = j.error === 'too_fast' ? '방금 올렸어요. 잠시 뒤 다시 올려 주세요.' : '올리지 못했어요. 잠시 뒤 다시 눌러 주세요.';
   } catch (e) { msg.textContent = '올리지 못했어요. 잠시 뒤 다시 눌러 주세요.'; }
   btn.disabled = false;

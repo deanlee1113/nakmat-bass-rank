@@ -31,7 +31,9 @@ async function ensureSchema(db) {
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_entries_board ON entries(m, hidden, reg, len)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_entries_sid ON entries(sid, ts)`),
   ]);
-  try { await db.prepare(`ALTER TABLE events ADD COLUMN name TEXT`).run(); } catch (e) { /* 이미 있음 */ }
+  for (const sql of [`ALTER TABLE events ADD COLUMN name TEXT`, `ALTER TABLE entries ADD COLUMN rank_at INTEGER`, `ALTER TABLE entries ADD COLUMN prev_rank INTEGER`, `ALTER TABLE entries ADD COLUMN beat TEXT`]) {
+    try { await db.prepare(sql).run(); } catch (e) { /* 이미 있음 */ }
+  }
   schemaReady = true;
 }
 
@@ -84,28 +86,47 @@ async function entry(request, env) {
   const prev = await env.DB.prepare(`SELECT ts FROM entries WHERE sid=?1 ORDER BY ts DESC LIMIT 1`).bind(sid).first();
   if (prev && Date.now() - prev.ts < 20000) return json({ ok: false, error: 'too_fast' }, 429);
   const L = Math.round(len * 100) / 100;
+  const rankOf = (v) => env.DB.prepare(
+    `SELECT COUNT(*) + 1 AS r FROM (SELECT sid, MAX(len) AS best FROM entries WHERE m=?1 AND hidden=0 GROUP BY sid) WHERE best > ?2`
+  ).bind(m, v).first();
+  const [mine, leader] = await env.DB.batch([
+    env.DB.prepare(`SELECT MAX(len) AS best FROM entries WHERE m=?1 AND sid=?2 AND hidden=0`).bind(m, sid),
+    env.DB.prepare(`SELECT sid, name, len FROM entries WHERE m=?1 AND hidden=0 ORDER BY len DESC, ts ASC LIMIT 1`).bind(m),
+  ]);
+  const prevBest = mine.results[0] ? mine.results[0].best : null;
+  const prevRank = prevBest != null ? (await rankOf(prevBest)).r : null;
+  const top = leader.results[0] || null;
   const r = await env.DB.prepare(
     `INSERT INTO entries (ts, sid, name, m, reg, len, photo, country) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
   ).bind(Date.now(), sid, name, m, reg, L, photo, (request.cf && request.cf.country) || null).run();
-  const rk = await env.DB.prepare(
-    `SELECT COUNT(*) + 1 AS r FROM (SELECT sid, MAX(len) AS best FROM entries WHERE m=?1 AND hidden=0 GROUP BY sid) WHERE best > ?2`
-  ).bind(m, L).first();
-  return json({ ok: true, id: r.meta.last_row_id, rank: rk ? rk.r : null });
+  const id = r.meta.last_row_id;
+  const best = prevBest != null && prevBest > L ? prevBest : L;
+  const rank = (await rankOf(best)).r;
+  const beat = rank === 1 && top && top.sid !== sid && L > top.len ? top.name : null;
+  await env.DB.prepare(`UPDATE entries SET rank_at=?2, prev_rank=?3, beat=?4 WHERE id=?1`).bind(id, rank, prevRank, beat).run();
+  return json({ ok: true, id, rank, prevRank, beat });
+}
+
+async function feed(env) {
+  await ensureSchema(env.DB);
+  const since = Date.now() - 48 * 3600 * 1000;
+  const [ents, checks] = await env.DB.batch([
+    env.DB.prepare(`SELECT id, ts, name, m, reg, len, rank_at, prev_rank, beat FROM entries WHERE hidden=0 ORDER BY ts DESC LIMIT 20`),
+    env.DB.prepare(`SELECT ts, m, reg, len, pct FROM events WHERE ev='rank' AND ts > ?1 AND len IS NOT NULL ORDER BY ts DESC LIMIT 20`).bind(since),
+  ]);
+  return json({ entries: ents.results, checks: checks.results }, 200, { 'Cache-Control': 'public, max-age=10' });
 }
 
 async function board(url, env) {
   const m = num(Number(url.searchParams.get('m')), 1, 12);
-  const reg = str(url.searchParams.get('reg') || '', 8);
   if (!m) return json({ rows: [], total: 0 });
   await ensureSchema(env.DB);
-  const byReg = reg && reg !== '전국';
-  const f = byReg ? `AND reg = ?2` : '';
-  const best = `SELECT sid, MAX(len) AS best FROM entries WHERE m=?1 AND hidden=0 ${f} GROUP BY sid`;
-  const rowsSql = `SELECT e.id, e.name, e.len, e.reg, e.ts FROM entries e JOIN (${best}) t ON e.sid=t.sid AND e.len=t.best
-    WHERE e.m=?1 AND e.hidden=0 ${byReg ? 'AND e.reg = ?2' : ''} GROUP BY e.sid ORDER BY e.len DESC, e.ts ASC LIMIT 20`;
-  const totalSql = `SELECT COUNT(*) AS c FROM (${best})`;
-  const bind = (s) => (byReg ? env.DB.prepare(s).bind(m, reg) : env.DB.prepare(s).bind(m));
-  const [rows, total] = await env.DB.batch([bind(rowsSql), bind(totalSql)]);
+  const best = `SELECT sid, MAX(len) AS best FROM entries WHERE m=?1 AND hidden=0 GROUP BY sid`;
+  const [rows, total] = await env.DB.batch([
+    env.DB.prepare(`SELECT e.id, e.name, e.len, e.reg, e.ts FROM entries e JOIN (${best}) t ON e.sid=t.sid AND e.len=t.best
+      WHERE e.m=?1 AND e.hidden=0 GROUP BY e.sid ORDER BY e.len DESC, e.ts ASC LIMIT 20`).bind(m),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM (${best})`).bind(m),
+  ]);
   return json({ rows: rows.results, total: total.results[0] ? total.results[0].c : 0 }, 200, { 'Cache-Control': 'public, max-age=10' });
 }
 
@@ -168,6 +189,7 @@ export default {
       if (request.method === 'GET' && p === '/api/count') return await count(env);
       if (request.method === 'POST' && p === '/api/entry') return await entry(request, env);
       if (request.method === 'GET' && p === '/api/board') return await board(url, env);
+      if (request.method === 'GET' && p === '/api/feed') return await feed(env);
       const ph = p.match(/^\/api\/photo\/(\d+)$/);
       if (request.method === 'GET' && ph) return await photo(Number(ph[1]), request, url, env);
       if (p === '/api/stats' || p === '/api/admin/hide') {
