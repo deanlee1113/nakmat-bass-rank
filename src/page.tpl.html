@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>내 배스 순위</title>
+<meta name="description" content="10월에 잡은 내 배스, 낚맛 기록 중 상위 몇 %일까? 길이만 넣으면 전국·지역 순위와 자랑 카드가 바로 나와요.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="내 배스, 상위 몇 %? | 낚맛">
+<meta property="og:description" content="낚맛에 기록된 배스 6만 5천 마리와 길이를 비교해 보세요. 전국·지역 순위, 자랑 카드까지.">
+<meta property="og:image" content="__SITE__og.png">
+<meta property="og:url" content="__SITE__">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="__LOGO__">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Big+Shoulders+Display:wght@800;900&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+/* Layout: one mobile column — sticker header, paper input card, navy scoreboard, locked lunker card, brag-card maker, histogram, share CTA. Single deliberate look (SLAM MATCHDAY), light only. */
+:root {
+  color-scheme: light;
+  --blue: #2E6BF2; --navy: #003366; --lime: #D4FF3A; --mint: #17C692; --orange: #FF4B2B;
+  --paper: #F6F3EA; --ink-soft: #3B5578; --sky: #BFD3EE; --white: #FFFFFF;
+  --f-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-num: "Big Shoulders Display", "Arial Narrow", "Apple SD Gothic Neo", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --shadow: 6px 6px 0 var(--navy);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body, h1, h2, h3, p, .btn, .brag { word-break: keep-all; overflow-wrap: anywhere; }
+body {
+  background: var(--blue); color: var(--navy); font-family: var(--f-body); font-size: 16px; line-height: 1.55;
+  background-image: radial-gradient(circle at 1px 1px, rgba(0,51,102,.22) 1.2px, transparent 1.6px), repeating-conic-gradient(from 0deg at 50% 118%, rgba(255,255,255,.07) 0deg 3deg, transparent 3deg 9deg);
+  background-size: 10px 10px, 100% 100%; background-attachment: scroll, fixed;
+}
+.wrap { max-width: 480px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; display: flex; flex-direction: column; gap: 18px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.logo { height: 22px; width: auto; filter: drop-shadow(2px 2px 0 var(--navy)); }
+.tape { display: inline-block; background: var(--paper); color: var(--navy); font-weight: 700; font-size: 13px; letter-spacing: .02em; padding: 5px 12px; transform: rotate(-3deg); box-shadow: 3px 3px 0 rgba(0,51,102,.55); }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(40px, 12.5vw, 58px); line-height: 1.06; margin: 6px 0 0; color: var(--white); transform: skewX(-8deg); transform-origin: left bottom; text-shadow: 5px 5px 0 var(--navy); text-wrap: balance; }
+h1 .hl { color: var(--lime); }
+.lede { margin: 0; color: var(--white); font-weight: 600; font-size: 15px; text-shadow: 1px 1px 0 var(--navy); }
+.lede b { font-family: var(--f-num); font-size: 19px; font-weight: 900; }
+.people { display: inline-block; margin-top: 6px; background: var(--navy); color: var(--lime); font-weight: 700; font-size: 13px; padding: 3px 10px; text-shadow: none; }
+
+.card { background: var(--paper); border: 3px solid var(--navy); box-shadow: var(--shadow); padding: 18px 16px; position: relative; }
+.card.tilt { transform: rotate(-.6deg); }
+.label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 8px; color: var(--navy); }
+.chips { display: grid; gap: 6px; margin-bottom: 16px; grid-template-columns: repeat(6, 1fr); }
+.chips button { font-family: var(--f-num); font-weight: 900; font-size: 18px; padding: 7px 0; border: 2px solid var(--navy); background: var(--white); color: var(--navy); cursor: pointer; border-radius: 0; }
+.chips.r button { font-family: var(--f-display); font-weight: 400; font-size: 16px; }
+.chips button[aria-pressed="true"] { background: var(--navy); color: var(--lime); }
+.chips button.thin { background: transparent; color: rgba(0,51,102,.45); border-style: dashed; border-color: rgba(0,51,102,.4); }
+.regnote { margin: -8px 0 14px; padding: 10px 12px; background: var(--white); border: 2px dashed var(--navy); font-size: 13px; }
+.regnote b { font-family: var(--f-display); font-weight: 400; font-size: 16px; display: block; margin-bottom: 2px; }
+.regnote a { color: var(--navy); font-weight: 700; }
+button:focus-visible, a:focus-visible, .lenbox input:focus-visible, .upl:focus-within { outline: 3px solid var(--orange); outline-offset: 2px; }
+.lenrow { display: flex; gap: 10px; align-items: stretch; }
+.lenbox { flex: 1; min-width: 0; display: flex; align-items: center; background: var(--white); border: 3px solid var(--navy); }
+.lenbox input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--navy); font-family: var(--f-num); font-weight: 900; font-size: 44px; line-height: 1; padding: 6px 10px; font-variant-numeric: tabular-nums; outline: none; }
+.lenbox span { font-family: var(--f-num); font-weight: 900; font-size: 26px; padding-right: 12px; color: var(--ink-soft); }
+.go { flex: 0 0 auto; border: 3px solid var(--navy); background: var(--mint); color: var(--navy); font-family: var(--f-display); font-size: 20px; padding: 0 16px; cursor: pointer; box-shadow: 4px 4px 0 var(--navy); }
+.go:active, .btn:active { transform: translate(3px,3px); box-shadow: 1px 1px 0 var(--navy); }
+.hint { margin: 10px 0 0; font-size: 13px; color: var(--ink-soft); min-height: 1.4em; }
+.hint.err { color: var(--orange); font-weight: 700; }
+
+.board { background: var(--navy); color: var(--white); border: 3px solid var(--navy); box-shadow: 6px 6px 0 rgba(0,20,45,.55); padding: 18px 16px 16px; position: relative; overflow: hidden; }
+.board::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 1.4px) 0 0 / 8px 8px; }
+#confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.eyebrow { font-family: var(--f-num); font-weight: 800; letter-spacing: .06em; font-size: 15px; color: var(--mint); padding-right: 110px; }
+.example { display: inline-block; margin-left: 8px; background: var(--orange); color: var(--white); font-family: var(--f-body); font-weight: 700; font-size: 11px; letter-spacing: 0; padding: 1px 7px; vertical-align: 2px; }
+.big { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 2px; transform: skewX(-8deg); }
+.big .pre { font-family: var(--f-display); font-size: 30px; }
+.big .num { font-family: var(--f-num); font-weight: 900; font-size: clamp(84px, 27vw, 120px); line-height: .9; color: var(--lime); font-variant-numeric: tabular-nums; text-shadow: 4px 4px 0 rgba(0,0,0,.25); }
+.big .pct { font-family: var(--f-num); font-weight: 900; font-size: 40px; color: var(--lime); }
+.tier { position: absolute; top: 14px; right: 14px; background: var(--lime); color: var(--navy); font-family: var(--f-display); font-size: 19px; padding: 6px 12px; transform: rotate(5deg); border: 3px solid var(--white); box-shadow: 3px 3px 0 rgba(0,0,0,.35); }
+.stamp { animation: stamp .45s cubic-bezier(.2,1.7,.4,1); }
+@keyframes stamp { 0% { transform: rotate(5deg) scale(2.2); opacity: 0; } 60% { opacity: 1; } 100% { transform: rotate(5deg) scale(1); } }
+.brag { margin: 8px 0 0; font-family: var(--f-display); font-size: 20px; line-height: 1.3; }
+.brag em { font-style: normal; color: var(--lime); }
+.rankline { margin: 6px 0 0; font-size: 15px; font-weight: 600; color: var(--sky); }
+.rankline b { font-family: var(--f-num); font-weight: 900; font-size: 21px; color: var(--white); font-variant-numeric: tabular-nums; }
+.basis { display: inline-block; margin-top: 8px; border: 1px solid rgba(255,255,255,.35); padding: 2px 8px; font-size: 12px; color: var(--sky); }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.stat { border: 2px solid rgba(255,255,255,.22); padding: 8px 10px; min-width: 0; }
+.stat .k { font-size: 12px; color: var(--sky); }
+.stat .v { font-family: var(--f-num); font-weight: 900; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat .v small { font-size: 16px; }
+.stat .v.up { color: var(--mint); }
+.stat .v.down { color: #FFB4A6; }
+.pop { animation: pop .28s cubic-bezier(.2,1.6,.4,1); }
+@keyframes pop { from { transform: skewX(-8deg) scale(1.25); } to { transform: skewX(-8deg) scale(1); } }
+
+.lunker { background: var(--white); }
+.stk { position: absolute; top: -14px; right: 14px; background: var(--orange); color: var(--white); font-family: var(--f-display); font-size: 15px; padding: 4px 10px; transform: rotate(4deg); border: 2px solid var(--white); box-shadow: 2px 2px 0 var(--navy); }
+.lunker h2 { font-family: var(--f-display); font-weight: 400; font-size: 23px; line-height: 1.25; margin: 4px 0 12px; transform: skewX(-6deg); text-wrap: balance; }
+.locked { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.lrow { display: flex; align-items: center; gap: 10px; background: var(--navy); color: var(--white); padding: 10px 12px; }
+.lrow .rk { font-family: var(--f-num); font-weight: 900; font-size: 22px; color: var(--mint); width: 34px; }
+.lrow .sw { width: 30px; height: 30px; border: 3px solid var(--white); background: repeating-linear-gradient(45deg, #5d7391 0 6px, #7d93b1 6px 12px); }
+.lrow .nm { flex: 1; font-family: var(--f-display); font-size: 22px; color: transparent; text-shadow: 0 0 10px rgba(255,255,255,.85); user-select: none; }
+.lrow .pc { font-family: var(--f-num); font-weight: 900; font-size: 26px; color: transparent; text-shadow: 0 0 10px rgba(212,255,58,.9); user-select: none; }
+.lockbadge { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(-4deg); background: var(--lime); border: 3px solid var(--navy); box-shadow: 4px 4px 0 var(--navy); font-family: var(--f-display); font-size: 18px; padding: 8px 14px; white-space: nowrap; }
+.lknote { margin: 10px 0 12px; font-size: 12px; color: var(--ink-soft); }
+.lkd { margin: 10px 0 0; font-size: 13px; color: var(--ink-soft); }
+
+.maker h2, .chartcard h2 { font-family: var(--f-display); font-weight: 400; font-size: 24px; margin: 0 0 2px; transform: skewX(-6deg); }
+.sub { margin: 0 0 10px; font-size: 13px; color: var(--ink-soft); }
+.preview { width: 100%; aspect-ratio: 4 / 5; max-width: 100%; display: block; border: 3px solid var(--navy); background: var(--navy); object-fit: cover; }
+.mbtns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; border: 3px solid var(--navy); font-family: var(--f-display); font-size: 18px; padding: 10px 14px; box-shadow: 4px 4px 0 var(--navy); cursor: pointer; flex: 1 1 140px; text-align: center; color: var(--navy); background: var(--white); }
+.btn.primary { background: var(--navy); color: var(--white); }
+.btn.lime { background: var(--lime); }
+.btn.block { flex: 0 0 auto; width: 100%; }
+.upl { position: relative; overflow: hidden; }
+.upl input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
+.note { margin: 10px 0 0; font-size: 12px; color: var(--ink-soft); }
+.msg { margin: 8px 0 0; font-size: 13px; font-weight: 700; min-height: 1.3em; }
+
+.chart { width: 100%; height: auto; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 5px; border: 2px solid var(--navy); }
+
+.cta { background: var(--lime); border: 3px solid var(--navy); box-shadow: var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.cta h3 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 24px; line-height: 1.2; transform: skewX(-6deg); }
+.cta p { margin: 0; font-size: 14px; font-weight: 600; }
+.sharebox { width: 100%; font: inherit; font-size: 13px; padding: 8px; border: 2px solid var(--navy); background: var(--white); color: var(--navy); resize: none; }
+
+.foot { color: var(--white); font-size: 12px; line-height: 1.6; text-shadow: 1px 1px 0 var(--navy); }
+.foot p { margin: 0 0 6px; }
+.foot .loop { font-family: var(--f-display); font-size: 16px; color: var(--lime); }
+@media (prefers-reduced-motion: reduce) { .pop, .stamp { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="tape">낚맛 데이터 리포트</span>
+    <img class="logo" src="__LOGO__" alt="낚맛 NAKMAT">
+  </div>
+
+  <header><h1>내 배스,<br><span class="hl">상위 몇 %?</span></h1></header>
+  <p class="lede"><span id="ledeY">2021~2026년</span> 낚맛에 기록된 <span id="ledeScope">10월</span> 배스 <b id="ledeN">-</b>마리와 길이를 비교해요.<br><span class="people" id="people" hidden></span></p>
+
+  <form class="card tilt" id="f" novalidate>
+    <span class="label" id="mlab">언제 잡았어요?</span>
+    <div class="chips" role="group" aria-labelledby="mlab" id="months"></div>
+    <span class="label" id="rlab">어디서 잡았어요?</span>
+    <div class="chips r" role="group" aria-labelledby="rlab" id="regions"></div>
+    <div class="regnote" id="regNote" hidden></div>
+    <label class="label" for="len">몇 cm였어요?</label>
+    <div class="lenrow">
+      <div class="lenbox">
+        <input id="len" name="len" type="number" inputmode="decimal" step="0.1" min="10" max="70" value="40" aria-describedby="hint">
+        <span>cm</span>
+      </div>
+      <button class="go" type="submit">순위 보기</button>
+    </div>
+    <p class="hint" id="hint">10~70cm 사이로 넣어 주세요. 소수점도 돼요(예: 38.5).</p>
+  </form>
+
+  <section class="board" aria-live="polite" id="board">
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <div class="eyebrow"><span id="bScope">10월 · 전국</span> 배스 순위<span class="example" id="exTag">예시</span></div>
+    <div class="tier" id="tier">에이스</div>
+    <div class="big" id="big"><span class="pre">상위</span><span class="num" id="pctNum">0</span><span class="pct" id="pctUnit">%</span></div>
+    <p class="brag" id="brag"></p>
+    <p class="rankline" id="rank1"></p>
+    <p class="rankline" id="rank2" hidden></p>
+    <span class="basis" id="basis"></span>
+    <div class="stats">
+      <div class="stat"><div class="k" id="medK">같은 달 중앙값</div><div class="v" id="sMed">-</div></div>
+      <div class="stat"><div class="k">중앙값과 차이</div><div class="v" id="sDiff">-</div></div>
+    </div>
+  </section>
+
+  <section class="card lunker" id="lunker">
+    <span class="stk">런커 리포트</span>
+    <h2 id="lkTitle">경북 50cm 넘는 런커, 무슨 컬러에 물었을까?</h2>
+    <div class="locked" aria-label="런커 루어 컬러 순위는 낚맛 앱에서 볼 수 있어요">
+      <div class="lrow" aria-hidden="true"><span class="rk">1위</span><span class="sw"></span><span class="nm">비공개컬러</span><span class="pc">00%</span></div>
+      <div class="lrow" aria-hidden="true"><span class="rk">2위</span><span class="sw"></span><span class="nm">비공개</span><span class="pc">00%</span></div>
+      <div class="lrow" aria-hidden="true"><span class="rk">3위</span><span class="sw"></span><span class="nm">비공개컬러</span><span class="pc">0%</span></div>
+      <span class="lockbadge">🔒 낚맛 앱에서 공개</span>
+    </div>
+    <p class="lknote" id="lkNote"></p>
+    <a class="btn primary block" href="https://app.nakmat.com" target="_blank" rel="noopener" data-track="lunker_app">낚맛 앱에서 런커 컬러 보기</a>
+    <p class="lkd">앱 지도에서 내 포인트를 잡고 레이더를 누르면 반경 약 2.5km 안의 실제 기록(사진·길이·채비)도 볼 수 있어요.</p>
+  </section>
+
+  <section class="card maker" id="maker">
+    <h2>자랑 카드 만들기</h2>
+    <p class="sub">내 배스 사진을 넣으면 순위가 박힌 카드가 바로 만들어져요. 사진은 이 화면 안에서만 쓰고 어디에도 올라가지 않아요.</p>
+    <img class="preview" id="cardImg" alt="내 배스 순위 자랑 카드 미리보기">
+    <div class="mbtns">
+      <label class="btn lime upl" for="photo">사진 넣기<input id="photo" type="file" accept="image/*"></label>
+      <button class="btn" type="button" id="clearPhoto" hidden>사진 빼기</button>
+    </div>
+    <div class="mbtns">
+      <a class="btn primary" id="saveCard" href="#" download="nakmat-bass-rank.jpg">이미지 저장</a>
+      <button class="btn" type="button" id="shareCard">카드 공유하기</button>
+    </div>
+    <p class="msg" id="cardMsg"></p>
+    <p class="note">저장 버튼이 안 되면 카드 이미지를 길게 눌러 저장하세요.</p>
+    <canvas id="cardCanvas" width="1080" height="1350" hidden></canvas>
+  </section>
+
+  <section class="card chartcard">
+    <h2 id="cTitle">10월 배스 길이 분포</h2>
+    <p class="sub" id="cSub">막대 하나가 1cm, 높이는 기록 수예요.</p>
+    <svg class="chart" id="chart" viewBox="0 0 340 190" role="img" aria-label="배스 길이 분포와 내 배스 위치"></svg>
+    <div class="legend"><span><i style="background:var(--navy)"></i>낚맛 기록</span><span><i style="background:var(--lime)"></i>내 배스</span><span><i style="background:var(--paper);border-style:dashed"></i>중앙값</span></div>
+  </section>
+
+  <section class="cta">
+    <h3>친구 배스는 몇 등일까?</h3>
+    <p>결과 문구를 복사해서 단톡방에 던져 보세요.</p>
+    <div class="mbtns">
+      <button class="btn" type="button" id="shareBtn">결과 문구 복사</button>
+      <a class="btn primary" href="https://app.nakmat.com" target="_blank" rel="noopener" data-track="app_cta">낚맛 앱 받기</a>
+    </div>
+    <p class="msg" id="copied"></p>
+    <textarea class="sharebox" id="shareText" rows="3" readonly hidden aria-label="복사할 결과 문구"></textarea>
+    <p>내 배스도 기록해 두면 다음 순위에 들어가요. 스토어에서 '낚맛' 검색 · app.nakmat.com</p>
+  </section>
+
+  <footer class="foot">
+    <p class="loop">낚시인이 남긴 기록이, 다시 낚시인에게</p>
+    <p>기준: 낚맛 앱 배스 승인 기록 중 10~70cm, 2021년 6월~2026년 10월 2일. 같은 달 기록을 연도 구분 없이 합쳐 비교하고, 화면에 실제 연도 범위를 함께 적어요. 지역은 기록이 100건·15명 이상이고 한 사람 기록이 절반을 넘지 않을 때만 순위를 내요. 그 달 기록이 부족하면 그 지역 1년 치 기록으로 비교해요. "상위 %"는 내 배스 이상 길이 기록의 비율이고, 낚맛에 기록된 배스 안에서의 순위예요.</p>
+    <p>사진은 이 화면 안에서만 쓰고 저장하지 않아요. 순위를 확인한 달·지역·길이와 버튼 사용은 이름이나 연락처 없이 통계로만 모아요.</p>
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const LUNKER = __LUNKER__;
+const LOGO = "__LOGO__";
+const STICKER = "__STICKER__";
+const SITE = "__SITE__";
+const API = "__API__";
+const NBIN = 601;
+
+/* ---------- data ---------- */
+function prep(d, annual) {
+  const cnt = new Array(NBIN).fill(0);
+  for (const [i, c] of d.h) cnt[i] = c;
+  const ge = new Array(NBIN + 1).fill(0);
+  for (let i = NBIN - 1; i >= 0; i--) ge[i] = ge[i + 1] + cnt[i];
+  const cm = new Array(60).fill(0);
+  cnt.forEach((c, i) => { cm[Math.min(59, Math.floor(i / 10))] += c; });
+  let mx = 0; for (let i = NBIN - 1; i >= 0; i--) if (cnt[i]) { mx = 10 + i / 10; break; }
+  return { n: d.n, med: d.med, y: d.y, ge, cm, mx, annual: !!annual };
+}
+const NAT = {}, REG = {};
+for (const [m, d] of Object.entries(DATA.nat)) NAT[m] = prep(d);
+for (const [r, cells] of Object.entries(DATA.reg)) { REG[r] = {}; for (const [k, d] of Object.entries(cells)) REG[r][k] = prep(d, k === 'all'); }
+function scopeData(r, m) {
+  if (r === '전국') return NAT[m];
+  const c = REG[r]; if (!c) return null;
+  return c[m] || c.all || null;
+}
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n.toLocaleString('ko-KR');
+const yr = (y) => (y[0] === y[1] ? `${y[0]}년` : `${y[0]}~${y[1]}년`);
+function josa(w, a, b) { const c = w.charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? a : b; }
+let month = new Date().getMonth() + 1;
+let region = '전국';
+let edited = false, photo = null, last = null;
+
+/* ---------- tracking (anonymous) ---------- */
+const SID = (() => { try { let s = localStorage.getItem('nbr_sid'); if (!s) { s = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('nbr_sid', s); } return s; } catch (e) { return 'anon-' + Math.random().toString(36).slice(2); } })();
+function track(ev, extra) {
+  if (!API) return;
+  const body = JSON.stringify(Object.assign({ sid: SID, ev, src: location.hostname }, extra || {}));
+  try {
+    const blob = new Blob([body], { type: 'text/plain' });
+    if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/api/track', blob))) fetch(API + '/api/track', { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
+  } catch (e) {}
+}
+const sentRanks = new Set();
+function trackRank() {
+  if (!last || !edited) return;
+  const key = `${month}|${region}|${last.L.toFixed(1)}`;
+  if (sentRanks.has(key)) return; sentRanks.add(key);
+  track('rank', { m: month, reg: region, len: +last.L.toFixed(1), pct: +last.r.pct.toFixed(2), tier: last.tier, annual: last.d.annual ? 1 : 0 });
+}
+let rankTimer = null;
+
+/* ---------- chips ---------- */
+const MONTHS = $('months'), REGIONS = $('regions');
+for (let m = 1; m <= 12; m++) { const b = document.createElement('button'); b.type = 'button'; b.textContent = m + '월'; b.dataset.v = m; b.addEventListener('click', () => { month = m; render(true); }); MONTHS.appendChild(b); }
+for (const r of ['전국', ...DATA.order]) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = r; b.dataset.v = r;
+  const info = DATA.info[r];
+  if (r !== '전국' && (!info || info.st !== 'ok')) b.classList.add('thin');
+  b.addEventListener('click', () => pickRegion(r));
+  REGIONS.appendChild(b);
+}
+function pickRegion(r) {
+  const info = DATA.info[r], note = $('regNote');
+  if (r !== '전국' && (!info || info.st !== 'ok')) {
+    const n = info ? info.n : 0;
+    const why = info && info.st === 'one' ? `한 사람 기록이 절반을 넘어서` : `기록이 아직 ${fmt(n)}건뿐이라`;
+    note.innerHTML = `<b>${r}${josa(r, '은', '는')} 아직 순위를 낼 수 없어요</b>${why} 비교가 어려워요. ${r} 배스를 낚맛에 기록하면 다음 순위의 주인공이 될 수 있어요. <a href="https://app.nakmat.com" target="_blank" rel="noopener" data-track="region_app">낚맛 앱에서 기록하기</a>`;
+    note.hidden = false;
+    track('region_empty', { reg: r });
+    return;
+  }
+  note.hidden = true; region = r; render(true);
+}
+function syncChips() {
+  MONTHS.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === month)));
+  REGIONS.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === region)));
+}
+
+/* ---------- ranking ---------- */
+function tierOf(p) { if (p <= 1) return '괴물급'; if (p <= 5) return '런커급'; if (p <= 15) return '에이스'; if (p <= 40) return '주전'; return '루키'; }
+function bragOf(p, scope) {
+  if (p <= 1) return `${scope}에서 <em>100마리 중 1등</em> 안에 드는 괴물이에요.`;
+  if (p <= 5) return `${scope} 배스 <em>20마리 중 1등</em>급, 런커 클래스예요.`;
+  if (p <= 15) return `${scope} 낚시인 대부분보다 큰 <em>에이스 배스</em>예요.`;
+  if (p <= 40) return `${scope} 배스 중 <em>상위권</em>에 들었어요. 다음엔 에이스!`;
+  return `기록이 쌓일수록 순위는 올라가요. <em>다음 한 마리</em>를 노려 봐요.`;
+}
+function pctText(p) { if (p >= 99.95) return '100'; return p < 10 ? p.toFixed(1) : String(Math.round(p * 10) / 10); }
+function rankIn(d, L) { const i = Math.max(0, Math.min(NBIN - 1, Math.round((L - 10) * 10))); const pct = (d.ge[i] / d.n) * 100; return { pct, rank: d.ge[i + 1] + 1, under: pct < 0.1, n: d.n }; }
+function basisText(d) { return d.annual ? `${yr(d.y)} ${region} 연중 기록 기준 (이 달 기록이 적어 1년 치로 비교)` : `${yr(d.y)} ${month}월 기록 기준`; }
+
+function render(animate) {
+  syncChips();
+  const d = scopeData(region, month);
+  const scope = region;
+  $('ledeY').textContent = yr(d.y);
+  $('ledeScope').textContent = d.annual ? `${region} 1년 치` : (region === '전국' ? `${month}월` : `${region} ${month}월`);
+  $('ledeN').textContent = fmt(d.n);
+  $('bScope').textContent = (d.annual ? '연중' : month + '월') + ' · ' + scope;
+  $('cTitle').textContent = (d.annual ? `${region} 연중` : `${month}월 ${region === '전국' ? '' : region + ' '}`.trim()) + ' 배스 길이 분포';
+  $('cSub').textContent = `막대 하나가 1cm, 높이는 기록 수예요. ${basisText(d)}.`;
+  $('medK').textContent = (region === '전국' ? '같은 달' : region) + ' 중앙값';
+  $('sMed').innerHTML = d.med.toFixed(1) + '<small>cm</small>';
+  $('exTag').hidden = edited;
+  $('basis').textContent = basisText(d);
+
+  const raw = $('len').value.trim(), L = parseFloat(raw), hint = $('hint');
+  if (raw === '' || isNaN(L) || L < 10 || L > 70) { hint.textContent = '10~70cm 사이 숫자로 넣어 주세요.'; hint.className = 'hint err'; return; }
+  hint.className = 'hint';
+  hint.textContent = L > d.mx ? `${scope} 기록 중 가장 큰 ${d.mx.toFixed(1)}cm보다 커요. 기록으로 남기면 1등이에요.` : '10~70cm 사이로 넣어 주세요. 소수점도 돼요(예: 38.5).';
+
+  const r = rankIn(d, L);
+  const rn = region === '전국' ? null : rankIn(NAT[month], L);
+  $('pctNum').textContent = r.under ? '0.1' : pctText(r.pct);
+  $('pctUnit').textContent = r.under ? '% 미만' : '%';
+  const tier = $('tier'); tier.textContent = tierOf(r.pct);
+  $('brag').innerHTML = bragOf(r.pct, scope);
+  $('rank1').innerHTML = `${scope} ${fmt(r.n)}마리 중 <b>${fmt(r.rank)}</b>등`;
+  const r2 = $('rank2');
+  if (rn) { r2.hidden = false; r2.innerHTML = `전국 ${month}월로 보면 상위 <b>${rn.under ? '0.1% 미만' : pctText(rn.pct) + '%'}</b> · ${fmt(rn.n)}마리 중 ${fmt(rn.rank)}등`; } else r2.hidden = true;
+  const diff = L - d.med, sd = $('sDiff');
+  sd.innerHTML = (diff >= 0 ? '+' : '−') + Math.abs(diff).toFixed(1) + '<small>cm</small>';
+  sd.className = 'v ' + (diff >= 0 ? 'up' : 'down');
+
+  last = { L, r, rn, d, scope, tier: tierOf(r.pct) };
+  if (animate) {
+    const big = $('big'); big.classList.remove('pop'); void big.offsetWidth; big.classList.add('pop');
+    tier.classList.remove('stamp'); void tier.offsetWidth; tier.classList.add('stamp');
+    if (r.pct <= 15 && edited) confetti();
+  }
+  drawChart(d, L); drawLunker(); buildShare(); scheduleCard();
+  clearTimeout(rankTimer); rankTimer = setTimeout(trackRank, 1500);
+}
+
+function drawChart(d, L) {
+  const x0 = 10, x1 = 330, y0 = 14, y1 = 160, bw = (x1 - x0) / 60, peak = Math.max(...d.cm);
+  const ys = (v) => y1 - (v / peak) * (y1 - y0), mine = Math.min(59, Math.floor(L) - 10);
+  let s = '';
+  for (let cm = 20; cm <= 60; cm += 10) { const x = x0 + (cm - 10) * bw; s += `<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="#003366" stroke-opacity=".12"/><text x="${x}" y="${y1 + 18}" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="14" fill="#003366">${cm}cm</text>`; }
+  d.cm.forEach((v, b) => { if (!v) return; const x = x0 + b * bw + 0.5, y = ys(v), me = b === mine; s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(bw - 1).toFixed(2)}" height="${(y1 - y).toFixed(2)}" fill="${me ? '#D4FF3A' : '#003366'}" stroke="${me ? '#003366' : 'none'}" stroke-width="${me ? 1.5 : 0}"><title>${b + 10}~${b + 11}cm: ${fmt(v)}마리</title></rect>`; });
+  const mx = x0 + (d.med - 10) * bw;
+  s += `<line x1="${mx}" y1="${y0 - 6}" x2="${mx}" y2="${y1}" stroke="#003366" stroke-width="2" stroke-dasharray="4 3"/><text x="${mx + 4}" y="${y0 + 2}" font-family="IBM Plex Sans KR, sans-serif" font-weight="700" font-size="11" fill="#003366">중앙 ${d.med.toFixed(1)}</text>`;
+  const px = x0 + (Math.min(Math.max(L, 10), 70) - 10) * bw, left = px > 230;
+  s += `<line x1="${px}" y1="${y0 + 14}" x2="${px}" y2="${y1}" stroke="#FF4B2B" stroke-width="2.5"/><g transform="translate(${left ? px - 92 : px + 4},${y0 + 16})"><rect width="88" height="22" fill="#FF4B2B" stroke="#003366" stroke-width="1.5"/><text x="44" y="16" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-weight="700" font-size="12" fill="#FFFFFF">내 배스 ${L.toFixed(1)}</text></g>`;
+  s += `<line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="#003366" stroke-width="2"/>`;
+  $('chart').innerHTML = s;
+}
+
+function drawLunker() {
+  const d = LUNKER[region];
+  if (d) {
+    $('lkTitle').textContent = `${region} 50cm 넘는 런커 ${fmt(d.n)}마리, 무슨 컬러에 물었을까?`;
+    $('lkNote').textContent = `${region} 50cm 이상 배스 ${fmt(d.n)}마리 · ${d.u}명 · ${yr(d.y)} 낚맛 기록 기준`;
+  } else {
+    $('lkTitle').textContent = `${region} 50cm 넘는 런커, 무슨 컬러에 물었을까?`;
+    $('lkNote').textContent = `${region}${josa(region, '은', '는')} 아직 50cm 이상 기록이 적어요. 첫 런커 기록의 주인공이 되어 보세요.`;
+  }
+}
+
+function shareLine() {
+  const { L, r, scope, tier, d } = last;
+  const p = r.under ? '0.1% 미만' : pctText(r.pct) + '%';
+  const when = d.annual ? `${scope} ` : `${month}월 ${scope === '전국' ? '' : scope + ' '}`;
+  return `내 ${when}배스 ${L.toFixed(1)}cm는 낚맛 기록(${yr(d.y)}) ${fmt(r.n)}마리 중 상위 ${p} (${fmt(r.rank)}등, ${tier})! 너 배스는 몇 등이야? ${SITE}`;
+}
+function buildShare() { $('shareText').value = shareLine(); }
+
+/* ---------- people count ---------- */
+if (API) fetch(API + '/api/count').then((r) => r.json()).then((j) => { if (j && j.people >= 30) { const el = $('people'); el.textContent = `지금까지 ${fmt(j.people)}명이 순위를 확인했어요`; el.hidden = false; } }).catch(() => {});
+
+/* ---------- confetti ---------- */
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = $('confetti'), b = $('board'), W = c.width = b.clientWidth, H = c.height = b.clientHeight, ctx = c.getContext('2d');
+  const cols = ['#D4FF3A', '#17C692', '#FF4B2B', '#FFFFFF'];
+  const ps = Array.from({ length: 90 }, () => ({ x: W * (0.3 + Math.random() * 0.4), y: H * 0.45, vx: (Math.random() - 0.5) * 9, vy: -Math.random() * 9 - 3, s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: cols[(Math.random() * 4) | 0] }));
+  const t0 = performance.now();
+  (function step(t) { const k = (t - t0) / 1400; ctx.clearRect(0, 0, W, H); if (k >= 1) return; for (const p of ps) { p.vy += 0.32; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.globalAlpha = 1 - k; ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 3, p.s, p.s * 0.66); ctx.restore(); } requestAnimationFrame(step); })(t0);
+}
+
+/* ---------- brag card ---------- */
+const imgs = {};
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+const fontsReady = Promise.race([Promise.all([document.fonts.load('900 260px "Big Shoulders Display"'), document.fonts.load('60px "Black Han Sans"'), document.fonts.load('700 36px "IBM Plex Sans KR"')]), new Promise((r) => setTimeout(r, 2500))]).catch(() => {});
+const assetsReady = Promise.all([loadImg(LOGO).then((i) => (imgs.logo = i)), loadImg(STICKER).then((i) => (imgs.sticker = i))]).catch(() => {});
+let cardTimer = null, cardUrl = null, cardBlob = null;
+function scheduleCard() { clearTimeout(cardTimer); cardTimer = setTimeout(drawCard, 120); }
+function fitFont(ctx, text, font, size, maxW) { let s = size; ctx.font = font.replace('$', s); while (ctx.measureText(text).width > maxW && s > 12) { s -= 2; ctx.font = font.replace('$', s); } return s; }
+function skewText(ctx, text, x, y, k) { ctx.save(); ctx.translate(x, y); ctx.transform(1, 0, -k, 1, 0, 0); ctx.fillText(text, 0, 0); ctx.restore(); }
+async function drawCard() {
+  if (!last) return;
+  await fontsReady; await assetsReady;
+  const c = $('cardCanvas'), ctx = c.getContext('2d'), W = 1080, H = 1350, { L, r, rn, d, scope, tier } = last;
+  ctx.clearRect(0, 0, W, H);
+  if (photo) { const s = Math.max(W / photo.width, H / photo.height), w = photo.width * s, h = photo.height * s; ctx.drawImage(photo, (W - w) / 2, (H - h) / 2, w, h); }
+  else {
+    ctx.fillStyle = '#2E6BF2'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(W / 2, H * 1.15); for (let a = 0; a < 360; a += 9) { ctx.rotate((9 * Math.PI) / 180); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(2000, -60); ctx.lineTo(2000, 60); ctx.closePath(); ctx.fill(); } ctx.restore();
+    ctx.fillStyle = 'rgba(0,51,102,.22)'; for (let yy = 0; yy < H; yy += 16) for (let xx = (yy / 16) % 2 ? 8 : 0; xx < W; xx += 16) { ctx.beginPath(); ctx.arc(xx, yy, 2, 0, 7); ctx.fill(); }
+    if (imgs.sticker) { const sw = 560, sh = imgs.sticker.height * (sw / imgs.sticker.width); ctx.save(); ctx.translate(W / 2 + 60, 120); ctx.rotate(-0.12); ctx.drawImage(imgs.sticker, -sw / 2, 0, sw, sh); ctx.restore(); }
+  }
+  let g = ctx.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, 'rgba(0,26,51,.55)'); g.addColorStop(1, 'rgba(0,26,51,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, 260);
+  g = ctx.createLinearGradient(0, 560, 0, H); g.addColorStop(0, 'rgba(0,26,51,0)'); g.addColorStop(0.45, 'rgba(0,26,51,.82)'); g.addColorStop(1, 'rgba(0,26,51,.96)'); ctx.fillStyle = g; ctx.fillRect(0, 560, W, H - 560);
+  ctx.save(); ctx.translate(60, 70); ctx.rotate(-0.05); ctx.fillStyle = 'rgba(0,51,102,.55)'; ctx.fillRect(6, 6, 330, 62); ctx.fillStyle = '#F6F3EA'; ctx.fillRect(0, 0, 330, 62); ctx.fillStyle = '#003366'; ctx.font = '700 32px "IBM Plex Sans KR", sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('낚맛 데이터 리포트', 22, 33); ctx.restore();
+  if (imgs.logo) { const lw = 250, lh = imgs.logo.height * (lw / imgs.logo.width); ctx.save(); ctx.shadowColor = '#003366'; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4; ctx.drawImage(imgs.logo, W - 60 - lw, 80, lw, lh); ctx.restore(); }
+  ctx.textBaseline = 'alphabetic';
+  ctx.save(); ctx.translate(W - 330, 690); ctx.rotate(0.09); ctx.font = '64px "Black Han Sans", sans-serif'; const tw = ctx.measureText(tier).width + 56; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(8, 8, tw, 100); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-6, -6, tw + 12, 112); ctx.fillStyle = '#D4FF3A'; ctx.fillRect(0, 0, tw, 100); ctx.fillStyle = '#003366'; ctx.fillText(tier, 28, 74); ctx.restore();
+  const num = r.under ? '0.1' : pctText(r.pct);
+  ctx.fillStyle = '#FFFFFF'; ctx.font = '78px "Black Han Sans", sans-serif'; skewText(ctx, '상위', 64, 900, 0.14);
+  ctx.font = '900 300px "Big Shoulders Display", "Arial Narrow", sans-serif'; const nx = 250, ny = 990;
+  ctx.fillStyle = '#003366'; skewText(ctx, num, nx + 12, ny + 12, 0.14); ctx.fillStyle = '#D4FF3A'; skewText(ctx, num, nx, ny, 0.14);
+  const nw = ctx.measureText(num).width; ctx.font = '900 130px "Big Shoulders Display", "Arial Narrow", sans-serif'; const unit = r.under ? '%↓' : '%';
+  ctx.fillStyle = '#003366'; skewText(ctx, unit, nx + nw + 18, ny + 10, 0.14); ctx.fillStyle = '#D4FF3A'; skewText(ctx, unit, nx + nw + 8, ny, 0.14);
+  const l1 = `${d.annual ? '' : month + '월 '}${scope === '전국' ? '' : scope + ' '}배스 ${L.toFixed(1)}cm`;
+  ctx.fillStyle = '#FFFFFF'; fitFont(ctx, l1, '$px "Black Han Sans", sans-serif', 68, W - 128); skewText(ctx, l1, 64, 1090, 0.1);
+  const l2 = `${scope} ${fmt(r.n)}마리 중 ${fmt(r.rank)}등` + (rn ? ` · 전국 상위 ${rn.under ? '0.1% 미만' : pctText(rn.pct) + '%'}` : '');
+  ctx.fillStyle = '#BFD3EE'; fitFont(ctx, l2, '700 $px "IBM Plex Sans KR", sans-serif', 38, W - 128); ctx.fillText(l2, 64, 1150);
+  ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = '600 24px "IBM Plex Sans KR", sans-serif'; ctx.fillText(`낚맛 앱 배스 기록 ${yr(d.y)} ${d.annual ? '연중' : month + '월'} 기준`, 64, H - 122);
+  ctx.textAlign = 'right'; ctx.fillText(SITE.replace(/^https?:\/\//, '').replace(/\/$/, ''), W - 60, H - 122); ctx.textAlign = 'left';
+  ctx.fillStyle = '#D4FF3A'; ctx.fillRect(0, H - 96, W, 96);
+  ctx.fillStyle = '#003366'; ctx.font = '900 52px "Big Shoulders Display", "Arial Narrow", sans-serif'; skewText(ctx, 'FOCUS ON YOUR FISHING', 60, H - 30, 0.14);
+  ctx.font = '36px "Black Han Sans", sans-serif'; ctx.textAlign = 'right'; ctx.fillText('낚시에만 집중하세요', W - 60, H - 34); ctx.textAlign = 'left';
+  c.toBlob((blob) => { if (!blob) return; if (cardUrl) URL.revokeObjectURL(cardUrl); cardBlob = blob; cardUrl = URL.createObjectURL(blob); $('cardImg').src = cardUrl; $('saveCard').href = cardUrl; $('saveCard').download = `nakmat-bass-${L.toFixed(1)}cm.jpg`; }, 'image/jpeg', 0.92);
+}
+
+$('photo').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try { photo = await loadImg(URL.createObjectURL(f)); $('clearPhoto').hidden = false; $('cardMsg').textContent = '사진을 넣었어요. 순위를 바꾸면 카드도 같이 바뀌어요.'; track('photo'); scheduleCard(); }
+  catch (err) { $('cardMsg').textContent = '이 사진은 열 수 없어요. JPG나 PNG로 다시 골라 주세요.'; }
+});
+$('clearPhoto').addEventListener('click', () => { photo = null; $('photo').value = ''; $('clearPhoto').hidden = true; $('cardMsg').textContent = ''; scheduleCard(); });
+$('saveCard').addEventListener('click', (e) => { if (!cardUrl) { e.preventDefault(); return; } track('card_save', { photo: photo ? 1 : 0 }); $('cardMsg').textContent = '저장했어요. 안 되면 카드를 길게 눌러 저장하세요.'; });
+$('shareCard').addEventListener('click', async () => {
+  if (!cardBlob) return;
+  const file = new File([cardBlob], 'nakmat-bass-rank.jpg', { type: 'image/jpeg' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: shareLine() }); track('card_share', { photo: photo ? 1 : 0 }); $('cardMsg').textContent = '공유 창을 열었어요.'; }
+    else $('cardMsg').textContent = '이 브라우저는 바로 공유가 안 돼요. 이미지를 저장한 뒤 올려 주세요.';
+  } catch (err) { if (err && err.name !== 'AbortError') $('cardMsg').textContent = '공유를 열지 못했어요. 이미지를 저장한 뒤 올려 주세요.'; }
+});
+document.addEventListener('click', (e) => { const a = e.target.closest('[data-track]'); if (a) track(a.dataset.track, { reg: region }); });
+$('f').addEventListener('submit', (e) => { e.preventDefault(); edited = true; render(true); trackRank(); $('board').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+$('len').addEventListener('input', () => { edited = true; render(false); });
+$('shareBtn').addEventListener('click', () => {
+  const t = shareLine();
+  const done = () => { $('copied').textContent = '복사했어요. 단톡방에 붙여 넣어 보세요.'; track('copy'); };
+  const fallback = () => { const box = $('shareText'); box.value = t; box.hidden = false; box.focus(); box.select(); $('copied').textContent = '아래 문구를 길게 눌러 복사해 주세요.'; };
+  try { navigator.clipboard.writeText(t).then(done, fallback); } catch (err) { fallback(); }
+});
+try { if (!sessionStorage.getItem('nbr_v')) { sessionStorage.setItem('nbr_v', '1'); track('visit', { ref: document.referrer ? new URL(document.referrer).hostname : '' }); } } catch (e) { track('visit'); }
+render(false);
+</script>
+</body>
+</html>

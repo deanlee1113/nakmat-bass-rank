@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>배스 순위 통계</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Big+Shoulders+Display:wght@900&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+:root { color-scheme: light; --blue: #2E6BF2; --navy: #003366; --lime: #D4FF3A; --mint: #17C692; --paper: #F6F3EA; --soft: #3B5578; --line: #D6DCE6; --white: #FFFFFF;
+  --f-d: "Black Han Sans", "Apple SD Gothic Neo", sans-serif; --f-n: "Big Shoulders Display", "Arial Narrow", sans-serif; --f-b: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--paper); color: var(--navy); font-family: var(--f-b); font-size: 14px; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--f-d); font-weight: 400; font-size: 30px; margin: 0; transform: skewX(-6deg); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bar input { flex: 1 1 220px; min-width: 0; font: inherit; padding: 10px; border: 2px solid var(--navy); }
+.bar button { font-family: var(--f-d); font-size: 16px; padding: 10px 16px; border: 2px solid var(--navy); background: var(--navy); color: var(--white); cursor: pointer; }
+.err { color: #CC3A40; font-weight: 700; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--white); border: 2px solid var(--navy); padding: 10px 12px; }
+.kpi .k { font-size: 12px; color: var(--soft); }
+.kpi .v { font-family: var(--f-n); font-weight: 900; font-size: 34px; font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: 12px; color: var(--soft); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.box { background: var(--white); border: 2px solid var(--navy); padding: 12px; min-width: 0; }
+.box h2 { font-family: var(--f-d); font-weight: 400; font-size: 18px; margin: 0 0 8px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12px; color: var(--soft); }
+td.n { text-align: right; }
+.barcell { display: flex; align-items: center; gap: 6px; }
+.barcell i { display: inline-block; height: 10px; background: var(--blue); }
+.funnel .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.funnel .row span:first-child { width: 120px; flex: 0 0 auto; font-size: 13px; }
+.funnel .row i { display: inline-block; height: 18px; background: var(--navy); }
+.funnel .row b { font-family: var(--f-n); font-size: 18px; }
+.note { font-size: 12px; color: var(--soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>내 배스 순위 · 이용 통계</h1>
+  <div class="bar">
+    <label for="key" class="note">관리자 키</label>
+    <input id="key" type="password" autocomplete="off" placeholder="관리자 키를 넣어 주세요">
+    <button type="button" id="load">통계 보기</button>
+  </div>
+  <p class="err" id="err" hidden></p>
+  <div id="out" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="box funnel" style="margin-top:12px"><h2>가입 유도 흐름 (사람 수)</h2><div id="funnel"></div><p class="note">앱 클릭 = "낚맛 앱 받기", "런커 컬러 보기", "기록 적은 지역 → 앱에서 기록하기" 버튼을 누른 사람 수예요. 실제 설치·가입 수는 아니에요.</p></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="box"><h2>최근 14일</h2><div class="tbl"><table id="daily"></table></div></div>
+      <div class="box"><h2>지역별 순위 확인</h2><div class="tbl"><table id="reg"></table></div></div>
+      <div class="box"><h2>등급 분포</h2><div class="tbl"><table id="tier"></table></div></div>
+      <div class="box"><h2>입력 길이(5cm 구간)</h2><div class="tbl"><table id="len"></table></div></div>
+      <div class="box"><h2>기록 적은 지역 클릭</h2><div class="tbl"><table id="empty"></table></div></div>
+      <div class="box"><h2>들어온 경로</h2><div class="tbl"><table id="ref"></table></div><div class="tbl" style="margin-top:8px"><table id="src"></table></div></div>
+    </div>
+    <div class="box" style="margin-top:12px"><h2>최근 기록 25건</h2><div class="tbl"><table id="recent"></table></div></div>
+  </div>
+</div>
+<script>
+const API = "https://nakmat-bass-rank.deanlee1113.workers.dev";
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (n || 0).toLocaleString('ko-KR');
+const EVK = { visit: '방문', rank: '순위 확인', region_empty: '기록 적은 지역 클릭', photo: '사진 넣기', card_save: '카드 저장', card_share: '카드 공유', copy: '결과 문구 복사', app_cta: '앱 받기 클릭', lunker_app: '런커 컬러 → 앱', region_app: '지역 → 앱 기록하기' };
+try { const k = sessionStorage.getItem('nbr_admin'); if (k) $('key').value = k; } catch (e) {}
+function table(el, head, rows, barCol) {
+  const max = barCol != null ? Math.max(1, ...rows.map((r) => r[barCol] || 0)) : 0;
+  el.innerHTML = '<tr>' + head.map((h) => `<th>${h}</th>`).join('') + '</tr>' + rows.map((r) => '<tr>' + r.map((c, i) => {
+    if (i === barCol) return `<td><span class="barcell"><i style="width:${Math.round((c / max) * 120)}px"></i>${fmt(c)}</span></td>`;
+    return typeof c === 'number' ? `<td class="n">${fmt(c)}</td>` : `<td>${c ?? ''}</td>`;
+  }).join('') + '</tr>').join('');
+}
+async function load() {
+  const key = $('key').value.trim(); $('err').hidden = true;
+  try { sessionStorage.setItem('nbr_admin', key); } catch (e) {}
+  let j;
+  try { const r = await fetch(API + '/api/stats', { headers: { 'X-Admin-Key': key } }); if (r.status === 401) throw new Error('관리자 키가 맞지 않아요.'); j = await r.json(); }
+  catch (e) { $('err').textContent = e.message || '통계를 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요.'; $('err').hidden = false; return; }
+  const ev = {}; for (const r of j.byEv) ev[r.ev] = r;
+  const P = (k) => (ev[k] ? ev[k].people : 0), N = (k) => (ev[k] ? ev[k].n : 0);
+  const appPeople = P('app_cta') + P('lunker_app') + P('region_app');
+  const k = [
+    ['방문자', P('visit'), `방문 ${fmt(N('visit'))}회`],
+    ['순위 확인한 사람', P('rank'), `순위 ${fmt(N('rank'))}회`],
+    ['사진 넣은 사람', P('photo'), ''],
+    ['카드 저장·공유', N('card_save') + N('card_share'), `저장 ${fmt(N('card_save'))} · 공유 ${fmt(N('card_share'))}`],
+    ['결과 문구 복사', N('copy'), ''],
+    ['앱 버튼 클릭', N('app_cta') + N('lunker_app') + N('region_app'), `런커 ${fmt(N('lunker_app'))} · 지역 ${fmt(N('region_app'))}`],
+  ];
+  $('kpis').innerHTML = k.map(([a, b, c]) => `<div class="kpi"><div class="k">${a}</div><div class="v">${fmt(b)}</div><div class="s">${c}</div></div>`).join('');
+  const steps = [['방문', P('visit')], ['순위 확인', P('rank')], ['카드·복사', Math.max(P('card_save') + P('card_share'), P('copy'))], ['앱 클릭', appPeople]];
+  const top = Math.max(1, steps[0][1]);
+  $('funnel').innerHTML = steps.map(([a, b], i) => `<div class="row"><span>${a}</span><i style="width:${Math.round((b / top) * 260)}px"></i><b>${fmt(b)}</b><span class="note">${i ? Math.round((b / Math.max(1, steps[i - 1][1])) * 100) + '%' : ''}</span></div>`).join('');
+  table($('daily'), ['날짜', '방문자', '순위', '카드', '복사', '앱 클릭'], j.daily.map((r) => [r.d, r.visitors, r.rankers, r.cards || 0, r.copies || 0, r.app || 0]));
+  table($('reg'), ['지역', '순위 확인'], j.byReg.map((r) => [r.reg, r.n]), 1);
+  table($('tier'), ['등급', '횟수'], j.byTier.map((r) => [r.tier, r.n]), 1);
+  table($('len'), ['길이', '횟수'], j.byLen.map((r) => [`${r.b}~${r.b + 5}cm`, r.n]), 1);
+  table($('empty'), ['지역', '클릭'], j.emptyReg.map((r) => [r.reg, r.n]), 1);
+  table($('ref'), ['들어온 곳', '사람'], j.byRef.map((r) => [r.ref, r.people]), 1);
+  table($('src'), ['접속 주소', '사람'], j.bySrc.map((r) => [r.src, r.people]), 1);
+  table($('recent'), ['시각(KST)', '행동', '달', '지역', '길이', '등급', '국가'], j.recent.map((r) => [new Date(r.ts).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), EVK[r.ev] || r.ev, r.m ?? '', r.reg ?? '', r.len ?? '', r.tier ?? '', r.country ?? '']));
+  $('out').hidden = false;
+}
+$('load').addEventListener('click', load);
+$('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+</script>
+</body>
+</html>

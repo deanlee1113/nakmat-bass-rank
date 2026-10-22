@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "nakmat-bass-rank",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "assets": { "directory": "docs", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "nakmat-bass-rank-db", "database_id": "30ac727d-50da-472f-a2b4-d05e5717a23d" }
+  ]
+}
