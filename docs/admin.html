@@ -38,6 +38,13 @@ td.n { text-align: right; }
 .funnel .row i { display: inline-block; height: 18px; background: var(--navy); }
 .funnel .row b { font-family: var(--f-n); font-size: 18px; }
 .note { font-size: 12px; color: var(--soft); }
+.ents { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ent { border: 2px solid var(--navy); background: var(--paper); display: flex; flex-direction: column; min-width: 0; }
+.ent.off { opacity: .45; border-style: dashed; }
+.ent img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--navy); }
+.ent .t { padding: 6px 8px; font-size: 12px; }
+.ent .t b { font-family: var(--f-n); font-size: 22px; }
+.ent button { margin: 0 8px 8px; font: inherit; font-weight: 700; padding: 6px; border: 2px solid var(--navy); background: var(--white); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -60,6 +67,7 @@ td.n { text-align: right; }
       <div class="box"><h2>기록 적은 지역 클릭</h2><div class="tbl"><table id="empty"></table></div></div>
       <div class="box"><h2>들어온 경로</h2><div class="tbl"><table id="ref"></table></div><div class="tbl" style="margin-top:8px"><table id="src"></table></div></div>
     </div>
+    <div class="box" style="margin-top:12px"><h2>랭킹 등록 (최근 60건)</h2><p class="note" id="entSum"></p><div class="ents" id="ents"></div><p class="note">숨기면 랭킹과 사진 주소에서 바로 빠져요. 다시 보이기로 되돌릴 수 있어요.</p></div>
     <div class="box" style="margin-top:12px"><h2>닉네임 넣은 참여자 (최근 50명)</h2><div class="tbl"><table id="names"></table></div></div>
     <div class="box" style="margin-top:12px"><h2>최근 기록 25건</h2><div class="tbl"><table id="recent"></table></div></div>
   </div>
@@ -69,7 +77,7 @@ const API = "https://nakmat-bass-rank.deanlee1113.workers.dev";
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (n || 0).toLocaleString('ko-KR');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const EVK = { visit: '방문', rank: '순위 확인', name: '닉네임 입력', region_empty: '기록 적은 지역 클릭', photo: '사진 넣기', card_save: '카드 저장', card_share: '카드 공유', copy: '결과 문구 복사', app_cta: '앱 받기 클릭', lunker_app: '런커 컬러 → 앱', region_app: '지역 → 앱 기록하기' };
+const EVK = { visit: '방문', rank: '순위 확인', name: '닉네임 입력', entry: '랭킹 등록', board_view: '랭킹 보기', region_empty: '기록 적은 지역 클릭', photo: '사진 넣기', card_save: '카드 저장', card_share: '카드 공유', copy: '결과 문구 복사', app_cta: '앱 받기 클릭', lunker_app: '런커 컬러 → 앱', region_app: '지역 → 앱 기록하기' };
 try { const k = sessionStorage.getItem('nbr_admin'); if (k) $('key').value = k; } catch (e) {}
 function table(el, head, rows, barCol) {
   const max = barCol != null ? Math.max(1, ...rows.map((r) => r[barCol] || 0)) : 0;
@@ -108,6 +116,25 @@ async function load() {
   table($('src'), ['접속 주소', '사람'], j.bySrc.map((r) => [r.src, r.people]), 1);
   table($('recent'), ['시각(KST)', '행동', '닉네임', '달', '지역', '길이', '등급', '국가'], j.recent.map((r) => [new Date(r.ts).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), EVK[r.ev] || r.ev, esc(r.name), r.m ?? '', r.reg ?? '', r.len ?? '', r.tier ?? '', r.country ?? '']));
   table($('names'), ['닉네임', '최대 입력 길이', '지역', '기록 수', '마지막(KST)'], (j.names || []).map((r) => [esc(r.name), r.best != null ? r.best + 'cm' : '', esc(r.reg), r.n, new Date(r.last).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })]));
+  const es = j.entriesSum || {};
+  $('entSum').textContent = `등록 ${fmt(es.n)}건 · ${fmt(es.people)}명 · 숨김 ${fmt(es.hidden)}건`;
+  const box = $('ents'); box.innerHTML = '';
+  for (const e of (j.entries || [])) {
+    const d = document.createElement('div'); d.className = 'ent' + (e.hidden ? ' off' : '');
+    d.innerHTML = `<img loading="lazy" alt="인증 사진"><div class="t"><b></b> · <span class="nm"></span><br><span class="mt"></span></div><button type="button"></button>`;
+    d.querySelector('img').src = `${API}/api/photo/${e.id}?key=${encodeURIComponent(key)}`;
+    d.querySelector('b').textContent = e.len + 'cm';
+    d.querySelector('.nm').textContent = e.name;
+    d.querySelector('.mt').textContent = `${e.m}월 · ${e.reg} · ${new Date(e.ts).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+    const btn = d.querySelector('button'); btn.textContent = e.hidden ? '다시 보이기' : '랭킹에서 숨기기';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const r = await fetch(API + '/api/admin/hide', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key }, body: JSON.stringify({ id: e.id, hidden: e.hidden ? 0 : 1 }) });
+      if (r.ok) { e.hidden = e.hidden ? 0 : 1; d.className = 'ent' + (e.hidden ? ' off' : ''); btn.textContent = e.hidden ? '다시 보이기' : '랭킹에서 숨기기'; }
+      btn.disabled = false;
+    });
+    box.appendChild(d);
+  }
   $('out').hidden = false;
 }
 $('load').addEventListener('click', load);
